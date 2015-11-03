@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import ixntools as ix
-from abundance import paxdb
+from expression import paxdb
 from itertools import combinations
 
 
@@ -102,13 +102,12 @@ def print_pairs(comps):
             print(comp, '\t'.join(pair), score0, score1, sep='\t')
 
 def get_abundances():
-    meta = paxdb.get_metadata()
+    meta = paxdb.get_metadata('10090')
     files = []
     for i in meta:
-        if i == 'WHOLE_ORGANISM' or i == 'SALIVA':
+        if i == 'WHOLE_ORGANISM' or i == 'CELL_LINE':
             continue
-        elif float(meta[i]['score']) >= 6.6:
-            files.append(meta[i]['filename'])
+        files.append(meta[i]['filename'])
     return files
 
 def read_pairs():
@@ -134,16 +133,15 @@ def extremely_ropey_test():
     """For each complex, are NED proteins expressed across a wider range of
     tissues that ED proteins? Seems to be unhealthily dependent on how many
     possible tissues are used. More tissues means more lo-quality data..."""
-    comps = get_complexes(2, 10)
+    comps = get_complexes(2, 5)
     ginfo = load_mouse_genes_ned()
-    omap = load_mouse_orthologs()
     abunds = [paxdb.Abundances(fname) for fname in get_abundances()]
     nedcount_greater = 0
     trials = 0
     for comp in comps:
         all_present = True
         for ensp in comps[comp]:
-            if ensp not in ginfo or ensp not in omap:
+            if ensp not in ginfo:
                 all_present = False
                 break
         if all_present == False:
@@ -157,19 +155,20 @@ def extremely_ropey_test():
         for ned in neds:
             n = 0
             for tissue in abunds:
-                if tissue.isexpressed(omap[ned]):
+                if tissue.isexpressed(ned):
                     n += 1
             nedcounts.append(n)
         for ed in eds:
             n = 0
             for tissue in abunds:
-                if tissue.isexpressed(omap[ed]):
+                if tissue.isexpressed(ed):
                     n += 1
             edcounts.append(n)
         if sum(nedcounts)/len(nedcounts) > sum(edcounts)/len(edcounts):
             nedcount_greater += 1
         trials += 1
+        print(sum(nedcounts)/len(nedcounts), sum(edcounts)/len(edcounts))
     print(nedcount_greater, trials)
 
 if __name__ == '__main__':
-    read_pairs()
+    extremely_ropey_test()

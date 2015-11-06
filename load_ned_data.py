@@ -135,7 +135,7 @@ def extremely_ropey_test():
     possible tissues are used. More tissues means more lo-quality data..."""
     comps = get_complexes(2, 5)
     ginfo = load_mouse_genes_ned()
-    abunds = [paxdb.Abundances(fname) for fname in get_abundances()]
+    abunds = [paxdb.Abundances(fname, 0) for fname in get_abundances()]
     nedcount_greater = 0
     trials = 0
     for comp in comps:
@@ -167,7 +167,6 @@ def extremely_ropey_test():
         if sum(nedcounts)/len(nedcounts) > sum(edcounts)/len(edcounts):
             nedcount_greater += 1
         trials += 1
-        print(sum(nedcounts)/len(nedcounts), sum(edcounts)/len(edcounts))
     print(nedcount_greater, trials)
 
 if __name__ == '__main__':

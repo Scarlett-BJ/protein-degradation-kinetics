@@ -51,3 +51,20 @@ length(filter(NEDoverED, class2 == "NED" & tcount2 > tcount1, interface > 200)$c
 
 length(NEDoverED$comp) - length(filter(NEDoverED, class1 == "NED" & tcount1 > tcount2 | 
                                         class2 == "NED" & tcount2 > tcount1)$comp)
+
+
+df <- read.table("protein_halflife/test.tmp")
+wincount <- 0
+trials <- 0
+for (pdb in levels(df$V1)){
+  coex.N <- filter(df, V1 == pdb, V4 == "U")
+  coex.E <- filter(df, V1 == pdb, V4 != "U")
+  if (length(coex.N$V1) > 0 & length(coex.E$V1) > 0){
+    trials <- trials + 1
+    if (mean(coex.N$V3) > mean(coex.E$V3)){
+      wincount <- wincount + 1
+    }
+  }
+}  
+print(wincount)
+print(trials)

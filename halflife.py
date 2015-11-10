@@ -221,7 +221,7 @@ def coexpression_test():
 def interface_test():
     ints = ix.Interface()
     test = Complexes()
-    test.filter_by_size(3, 10)
+    test.filter_by_size(2, 20)
     mean = lambda x: sum(x)/len(x)
     wincount = 0
     trials = 0
@@ -240,9 +240,9 @@ def interface_test():
             chainB = p[1].chain
             if not ints.is_present(pdb, chainA, chainB):
                 continue
-            if p1c != 'E' and p2c == 'E' or p1c == 'E' and p2c != 'E':
+            if p1c == 'E' or p2c == 'E':
                 ue.append(ints.get_interface(pdb, chainA, chainB))
-            elif p1c != 'N' and p2c != 'N':
+            elif p1c != 'E' and p2c != 'E':
                 no_e.append(ints.get_interface(pdb, chainA, chainB))
             # elif p1c == 'E' and p2c == 'E':
             #     ee.append(ints.get_interface(pdb, chainA, chainB))
@@ -381,5 +381,5 @@ def pairwise_coexpression():
 
 
 if __name__ == '__main__':
-    coexpression_test()
+    interface_test()
 

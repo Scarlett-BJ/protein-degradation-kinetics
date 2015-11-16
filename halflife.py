@@ -99,7 +99,6 @@ class Complexes(MouseTable):
     def __init__(self):
         super().__init__()
         self._init_raw_complexes()
-        self._filter_identical()
         self._init_fleshed_complexes()
         self.members = set(self._complexes)
 
@@ -148,6 +147,14 @@ class Complexes(MouseTable):
                 fleshed.append(prot)
             self._complexes[comp] = Complex(comp, fleshed)
 
+    def filter_by_list(self, filename):
+        with open(filename) as infile:
+            complist = {line.strip() for line in infile}
+        for comp in list(self._complexes):
+            if comp not in complist:
+                self._complexes.pop(comp)
+        self.members = set(self._complexes)
+
     def filter_by_size(self, lower, upper):
         for comp in list(self._complexes):
             size = len(self._complexes[comp])
@@ -169,4 +176,23 @@ def hein():
 
 
 if __name__ == '__main__':
-    hein()
+    gene_map = get_gene_map()
+    complexes = Complexes()
+    complexes.filter_by_list('complex_set.txt')
+    for prot in complexes['5a1v'].members:
+        print(prot.name, gene_map[prot.name].upr, prot.decay)
+    # for comp in complexes.members:
+    #     comp = complexes[comp]
+    #     ncount = 0
+    #     ucount = 0
+    #     ecount = 0
+    #     for prot in comp.members:
+    #         dclass = prot.decay
+    #         if dclass == 'N':
+    #             ncount += 1
+    #         elif dclass == 'U':
+    #             ucount += 1
+    #         elif dclass == 'E':
+    #             ecount += 1
+    #     ln = len(comp.members)
+    #     print(comp.name, ln, ncount/ln, ucount/ln, ecount/ln)

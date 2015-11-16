@@ -1,3 +1,7 @@
+*.ini
+*.pov
+*.png
+*.txt
 dbscan.py
 data/
 __pycache__/

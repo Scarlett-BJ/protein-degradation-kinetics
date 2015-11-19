@@ -35,7 +35,6 @@ def load_table(n):
     useable = table.filter(name=strucs, unq_chns=range(2, 500))
     return useable
 
-
 def get_chains(pool, threshold):
     """For all structures in table, if at least x percent of that structure’s
     chains (x ~ 90) map to a mouse protein, then add it to a list of
@@ -63,19 +62,26 @@ def get_chains(pool, threshold):
             useable.append(struc)
     return useable
 
-def interfaces(pool):
+def filter_interfaces(pool):
     useable = []
+    errors = []
     cmap = ixn.structure.chain_map()
     ints = ixn.structure.Interfaces()
     for struc in pool:
+        if struc.name not in ints.interfaces:
+            errors.append(struc)
+            continue
         try:
             pdb_chns = {c.chn for c in struc.chains}
-            chns = {cmap[struc.name][c.chn] for c in struc.chains}
-            print(chns)
+            chns = {cmap[struc.name][c.chn][0] for c in struc.chains}
         except:
-            print()
-            print(struc.name, pdb_chns, cmap[struc.name])
-            print()
+            errors.append(struc)
+            continue
+        chn_combs = set(tuple(sorted(i)) for i in combinations(chns, 2))
+        int_combs = set(ints[struc.name].keys())
+        if len(chn_combs.intersection(int_combs)) == len(chn_combs):
+            useable.append(struc)
+    return useable
 
 def filter_missing_classes(pool):
     useable = []
@@ -180,16 +186,16 @@ def display_pairwise(pool):
             print(struc, info, sep='\t')
 
 if __name__ == '__main__':
-    pool = load_table(1)
-    pool =
-    pool = get_chains(pool, 100)
-    interfaces(pool)
+    pool = load_table(30)
+    pool = get_chains(pool, 55)
+    pool = filter_interfaces(pool)
     # pool = filter_missing_classes(pool)
-    # pool = get_pfams(pool)
-    # clusters = cluster_redundant(pool, 66, 'Chains')
-    # pool = filter_redundant(clusters)
+    pool = get_pfams(pool)
+    clusters = cluster_redundant(pool, 66, 'Chains')
+    pool = filter_redundant(clusters)
     # clusters = cluster_redundant(pool, 100, 'Domains')
     # pool = filter_redundant(clusters)
-    # pool = filter_pfam(pool, 50)
-    # pool = filter_ribosomal(pool)
-    # display_pairwise(pool)
+    pool = filter_pfam(pool, 60)
+    pool = filter_ribosomal(pool)
+    display_pairwise(pool)
+    # summary(pool)

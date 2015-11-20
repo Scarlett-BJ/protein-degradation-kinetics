@@ -62,7 +62,7 @@ def get_chains(pool, threshold):
             useable.append(struc)
     return useable
 
-def filter_interfaces(pool):
+def filter_by_interfaces(pool):
     useable = []
     errors = []
     cmap = ixn.structure.chain_map()
@@ -71,17 +71,23 @@ def filter_interfaces(pool):
         if struc.name not in ints.interfaces:
             errors.append(struc)
             continue
-        try:
-            pdb_chns = {c.chn for c in struc.chains}
-            chns = {cmap[struc.name][c.chn][0] for c in struc.chains}
-        except:
-            errors.append(struc)
-            continue
-        chn_combs = set(tuple(sorted(i)) for i in combinations(chns, 2))
+        pdb_chns = {c.chn for c in struc.chains}
+        chn_combs = set(combinations(pdb_chns, 2))
         int_combs = set(ints[struc.name].keys())
-        if len(chn_combs.intersection(int_combs)) == len(chn_combs):
-            useable.append(struc)
+        for pair in int_combs:
+            smap = cmap[struc.name]
+            if pair[0] not in smap or pair[1] not in smap:
+                errors.append((struc, pair))
+            npair = tuple(sorted((smap[pair[0]], smap[pair[1]])))
+            if npair in chn_combs:
+                interface = ints.get_interface(struc.name, pair[0], pair[1])
+                print(struc, npair, pdb_chns, interface)
+
+            # if tuple(sorted((smap[pair[0]], smap[pair[1]]))) in chn_combs:
+            #     useable.append(struc)
+            #     break
     return useable
+
 
 def filter_missing_classes(pool):
     useable = []
@@ -186,16 +192,16 @@ def display_pairwise(pool):
             print(struc, info, sep='\t')
 
 if __name__ == '__main__':
-    pool = load_table(30)
-    pool = get_chains(pool, 55)
-    pool = filter_interfaces(pool)
+    pool = load_table(20)
+    pool = get_chains(pool, 70)
     # pool = filter_missing_classes(pool)
-    pool = get_pfams(pool)
-    clusters = cluster_redundant(pool, 66, 'Chains')
-    pool = filter_redundant(clusters)
+    pool = filter_by_interfaces(pool)
+    # pool = get_pfams(pool)
+    # clusters = cluster_redundant(pool, 66, 'Chains')
+    # pool = filter_redundant(clusters)
     # clusters = cluster_redundant(pool, 100, 'Domains')
     # pool = filter_redundant(clusters)
-    pool = filter_pfam(pool, 60)
-    pool = filter_ribosomal(pool)
-    display_pairwise(pool)
+    # pool = filter_pfam(pool, 60)
+    # pool = filter_ribosomal(pool)
+    # display_pairwise(pool)
     # summary(pool)

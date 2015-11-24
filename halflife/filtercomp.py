@@ -10,7 +10,7 @@ from sklearn.neighbors import DistanceMetric
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import jaccard_similarity_score
 
-def load_table(n):
+def load_table(n, startval):
     """Select appropriate minimum chain length, and then return a list of
     complexes from the relevant table. i.e. table30.out for minimum chain
     length of 30 residues.
@@ -18,7 +18,7 @@ def load_table(n):
     with open('data/ned_mapped_to_pdb.out') as infile:
         strucs = {l.split('_')[0] for l in infile}
     table = structure.Table(n)
-    useable = table.filter(name=strucs, unq_chns=range(2, 500))
+    useable = table.filter(name=strucs, unq_chns=range(startval, 500))
     return useable
 
 def get_chains(pool, threshold):
@@ -50,8 +50,9 @@ def get_chains(pool, threshold):
     return useable
 
 def get_interfaces(pool):
+    """Fuckin nightmare."""
     useable = []
-    cmap = structure.chain_map()
+    cmap = structure.chain_map()  # From Joe's to PDB
     ints = structure.Interfaces()
     for struc in pool:
         if struc.name not in ints.members:
@@ -63,6 +64,7 @@ def get_interfaces(pool):
             if key[0] not in smap or key[1] not in smap:
                 continue
             unq = tuple(sorted((smap[key[0]], smap[key[1]])))
+            # And or Or makes a big difference here.
             if unq[0] in unq_chns and unq[1] in unq_chns:
                 interface = ints.get_interface(struc.name, key[0], key[1])
                 if unq not in struc_ints:
@@ -74,6 +76,53 @@ def get_interfaces(pool):
     useable.sort(key=lambda x: x.name)
     return useable
 
+def get_interfaces2(pool):
+    cmap = structure.chain_map()
+    smap = structure.similar_chains()
+    ints = structure.Interfaces()
+
+    def cmapper(key):
+        return tuple(sorted([jpmap[key[0]], jpmap[key[1]]]))
+
+    useable = []
+    errors = []
+    for struc in pool:
+        # Convert interfaces from Joe's assignments to pdb
+        if struc.name not in ints.members:
+            continue
+        jpmap = cmap[struc.name]  # Map Joe -> PDB for structure
+        interfaces = ints[struc.name]
+        interfaces = {cmapper(i): interfaces[i] for i in interfaces
+                      if i[0] in jpmap and i[1] in jpmap}
+        # Map similar chains to mouse_chains
+        mouse_chains = {c.chn for c in struc.chains}
+        simchains = smap[struc.name]
+        sim_dict = {}
+        for cluster in simchains:
+            primary_chn = list(cluster.intersection(mouse_chains))
+            if len(primary_chn) > 1:
+                errors.append(struc)
+                continue
+            for i in cluster:
+                if primary_chn != []:
+                    sim_dict[i] = primary_chn[0]
+                else:
+                    sim_dict[i] = i
+        # Map interfaces to non-unique chain assigments
+        new_ints = {}
+        for key in interfaces:
+            if key[0] not in sim_dict or key[1] not in sim_dict:
+                errors.append(struc)
+                continue
+            new_key = tuple(sorted((sim_dict[key[0]], sim_dict[key[1]])))
+            if new_key not in new_ints:
+                new_ints[new_key] = [interfaces[key]]
+            else:
+                new_ints[new_key].append(interfaces[key])
+        struc.interfaces = {key: max(new_ints[key]) for key in new_ints}
+        if struc not in errors:
+            useable.append(struc)
+    return useable
 
 class PFAMFilters(object):
     """Could probably stop using useable, adds unneccessary memory usage."""
@@ -132,7 +181,6 @@ class Clusters(object):
         self._clusters = []
 
     def cluster(self, eps, feature):
-        # Nailed it... Might put this in cluster factory
         pool_dict = {c.name: c for c  in self._pool}
         if feature == 'prot':
             features = [sorted([p.prot for p in i.chains])
@@ -141,9 +189,6 @@ class Clusters(object):
             features = [sorted([','.join(sorted(p.pfam)) for p in i.pfams])
                         for i in pool_dict.values()]
         features = MultiLabelBinarizer().fit_transform(features)
-        # dist = DistanceMetric.get_metric('jaccard')
-        # distance_matrix = dist.pairwise(features)
-        # Not 100% sure this is correct yet.
         dbs = DBSCAN(eps=eps, min_samples=1, metric='jaccard')
         clust_labels = dbs.fit_predict(features)
         i = 0
@@ -203,19 +248,19 @@ class Clusters(object):
 def summary(pool):
     """Summarises distribution of different sized complexes in a pool."""
     all_lengths = [i.tot_chns for i in pool]
-    lengths = {i.unq_chns for i in pool}
+    lengths = {i.tot_chns for i in pool}
     for i in sorted(lengths):
         print(i, all_lengths.count(i))
     print('total:', len(pool))
 
 def pipeline():
-    pool = load_table(30)
-    pool = get_chains(pool, 80)
+    pool = load_table(30, 2)
+    pool = get_chains(pool, 67)
     pfam = PFAMFilters(pool)
     pfam.assign_pfams()
-    pfam.filter_paralogous(50)
+    pfam.filter_paralogous(100)
     pool = pfam.pool
-    pool = get_interfaces(pool)
+    pool = get_interfaces2(pool)
     clusters = Clusters(pool)
     clusters.cluster(0.34, 'prot')
     clusters.sort()
@@ -241,8 +286,10 @@ def pairwise():
         for p in struc.interfaces:
             iface = struc.interfaces[p]
             info = [str(struc),
-                    '\t'.join([str(i) for i in cdict[p[0]]]),
-                    '\t'.join([str(i) for i in cdict[p[1]]]),
+                    '\t'.join([str(i) for i in
+                               cdict.get(p[0], ['NA', 'NA', 'NA'])]),
+                    '\t'.join([str(i) for i in
+                               cdict.get(p[1], ['NA', 'NA', 'NA'])]),
                     str(iface)]
             print('\t'.join(info))
 
@@ -258,6 +305,6 @@ def protwise():
 
 if __name__ == '__main__':
     # summary(pipeline())
-    # pairwise()
-    protwise()
+    pairwise()
+    # protwise()
 

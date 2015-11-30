@@ -50,33 +50,6 @@ def get_chains(pool, threshold):
     return useable
 
 def get_interfaces(pool):
-    """Fuckin nightmare."""
-    useable = []
-    cmap = structure.chain_map()  # From Joe's to PDB
-    ints = structure.Interfaces()
-    for struc in pool:
-        if struc.name not in ints.members:
-            continue
-        unq_chns = {c.chn for c in struc.chains}
-        smap = cmap[struc.name]
-        struc_ints = {}
-        for key in ints[struc.name]:
-            if key[0] not in smap or key[1] not in smap:
-                continue
-            unq = tuple(sorted((smap[key[0]], smap[key[1]])))
-            # And or Or makes a big difference here.
-            if unq[0] in unq_chns and unq[1] in unq_chns:
-                interface = ints.get_interface(struc.name, key[0], key[1])
-                if unq not in struc_ints:
-                    struc_ints[unq] = interface
-                else:
-                    struc_ints[unq] = max((interface, struc_ints[unq]))
-        struc.interfaces = struc_ints
-        useable.append(struc)
-    useable.sort(key=lambda x: x.name)
-    return useable
-
-def get_interfaces2(pool):
     cmap = structure.chain_map()
     smap = structure.similar_chains()
     ints = structure.Interfaces()
@@ -211,7 +184,7 @@ class Clusters(object):
         return struc.name
 
     def sort(self):
-        sortfunc = lambda x: (self._interface(x), self._chain(x),
+        sortfunc = lambda x: (self._chain(x), self._interface(x),
                               self._seqid(x), self._name(x))
         for label in self._clusters:
             if len(self._clusters[label]) == 1:
@@ -245,22 +218,26 @@ class Clusters(object):
         return len(self._clusters)
 
 
-def summary(pool):
+def summary(pool, key):
     """Summarises distribution of different sized complexes in a pool."""
-    all_lengths = [i.tot_chns for i in pool]
-    lengths = {i.tot_chns for i in pool}
+    if key == 'unq':
+        all_lengths = [i.unq_chns for i in pool]
+        lengths = {i.unq_chns for i in pool}
+    elif key == 'tot':
+        all_lengths = [i.tot_chns for i in pool]
+        lengths = {i.tot_chns for i in pool}
     for i in sorted(lengths):
         print(i, all_lengths.count(i))
     print('total:', len(pool))
 
-def pipeline():
-    pool = load_table(30, 2)
-    pool = get_chains(pool, 67)
+def pipeline(n=2):
+    pool = load_table(30, n)
+    pool = get_chains(pool, 80)
     pfam = PFAMFilters(pool)
     pfam.assign_pfams()
     pfam.filter_paralogous(100)
     pool = pfam.pool
-    pool = get_interfaces2(pool)
+    pool = get_interfaces(pool)
     clusters = Clusters(pool)
     clusters.cluster(0.34, 'prot')
     clusters.sort()
@@ -271,40 +248,49 @@ def pipeline():
     pool = clusters.get_complexes()
     pfam = PFAMFilters(pool)
     pfam.filter_immunoglobins()
-    pfam.filter_ribosomes()
+    pfam.filter_ribosomes(40)
     pool = pfam.pool
     pool.sort(key=lambda x: x.name)
     return pool
 
-def pairwise():
-    pool = pipeline()
-    header = ['struc', 'unq', 'tot', 'sym', 'p1', 'p1.score', 'p1.cls',
-              'p2', 'p2.score', 'p2.cls', 'int',]
-    print('\t'.join(header))
-    for struc in pool:
-        cdict = {c.chn: (c.prot, c.score, c.dclass) for c in struc.chains}
-        for p in struc.interfaces:
-            iface = struc.interfaces[p]
-            info = [str(struc),
-                    '\t'.join([str(i) for i in
-                               cdict.get(p[0], ['NA', 'NA', 'NA'])]),
-                    '\t'.join([str(i) for i in
-                               cdict.get(p[1], ['NA', 'NA', 'NA'])]),
-                    str(iface)]
-            print('\t'.join(info))
+def pairwise(pool):
+    header = ['struc', 'unq', 'tot', 'sym', 'p1', 'p1score', 'p1cls',
+              'p2', 'p2score', 'p2cls', 'int',]
+    with open('data/pairwise_trimers.tsv', 'w') as outfile:
+        outfile.write('\t'.join(header) + '\n')
+        for struc in pool:
+            cdict = {c.chn: (c.prot, c.score, c.dclass) for c in struc.chains}
+            for p in struc.interfaces:
+                iface = struc.interfaces[p]
+                if p[0] not in cdict or p[1] not in cdict:
+                    continue
+                p1 = cdict.get(p[0], ['NA', 'NA', 'NA'])
+                p2 = cdict.get(p[1], ['NA', 'NA', 'NA'])
+                info = [struc] + list(p1) + list(p2) + [iface]
+                info = [str(i) for i in info]
+                outfile.write('\t'.join(info) + '\n')
 
-def protwise():
+def protwise(pool):
     with open('data/mouse_genes_ned.txt') as infile:
         pdict = {i.split(',')[0]: i.split(',')[-1].strip() for i in infile}
-    pool = pipeline()
-    print('\t'.join(['struc', 'unq', 'tot', 'sym', 'prot', 's', 'ab', 'dcls']))
-    for struc in pool:
-        for prot in struc.chains:
-            abund = pdict[prot.prot]
-            print(struc, prot.prot, prot.score, abund, prot.dclass, sep='\t')
+    with open('data/protwise_trimers.tsv', 'w') as outfile:
+        header = ['struc', 'unq', 'tot', 'sym', 'prot', 's', 'ab', 'dcls']
+        outfile.write('\t'.join(header) + '\n')
+        for struc in pool:
+            for prot in struc.chains:
+                abund = pdict[prot.prot]
+                info = [struc, prot.prot, prot.score, abund, prot.dclass]
+                info = [str(i) for i in info]
+                outfile.write('\t'.join(info) + '\n')
 
 if __name__ == '__main__':
-    # summary(pipeline())
-    pairwise()
-    # protwise()
+    pool = pipeline(3)
+    summary(pool, 'unq')
+    pairwise(pool)
+    protwise(pool)
+    # for struc in pipeline():
+    #     print(struc)
+    #     for i in struc.interfaces:
+    #         print(i, struc.interfaces[i])
+    #     print()
 

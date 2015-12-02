@@ -150,5 +150,34 @@ def avg_coexpression():
                     success += 1
     print(success, trials, binom_test(success, trials))
 
+def abundance_similarity():
+    header, data = load_data('data/protwise_trimers.tsv')
+    cdict = get_complexes(header, data)
+    success = 0
+    trials = 0
+    for pdb in cdict:
+        nvals = []
+        evals = []
+        comp = cdict[pdb]
+        nprots = [prot for prot in comp if prot.dcls == 'N']
+        eprots = [prot for prot in comp if prot.dcls == 'E' or prot.dcls == 'U']
+        mean_n = []
+        mean_e = []
+        # if len(nprots) == 0 or len(eprots) == 0:
+        #     continue
+        for pn in nprots:
+            for pn2 in nprots:
+                if pn == pn2:
+                    continue
+                mean_n.append(((float(pn.ab) - float(pn2.ab))**2)**0.5)
+            for pe in eprots:
+                mean_e.append(((float(pn.ab) - float(pe.ab))**2)**0.5)
+        if len(mean_n) == 0 or len(mean_e) == 0:
+            continue
+        trials += 1
+        if np.mean(mean_n) > np.mean(mean_e):
+            success += 1
+    print(success, trials, binom_test(success, trials))
+
 if __name__ == '__main__':
-    avg_coexpression()
+    abundance_similarity()

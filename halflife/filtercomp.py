@@ -242,21 +242,21 @@ def pipeline(n=2):
     clusters.cluster(0.34, 'prot')
     clusters.sort()
     pool = clusters.get_complexes()
-    clusters.pool = pool
-    clusters.cluster(0.1, 'pfam')
-    clusters.sort()
-    pool = clusters.get_complexes()
+    # clusters.pool = pool
+    # clusters.cluster(0.1, 'pfam')
+    # clusters.sort()
+    # pool = clusters.get_complexes()
     pfam = PFAMFilters(pool)
     pfam.filter_immunoglobins()
-    pfam.filter_ribosomes(40)
+    pfam.filter_ribosomes()
     pool = pfam.pool
     pool.sort(key=lambda x: x.name)
     return pool
 
-def pairwise(pool):
+def pairwise(pool, ofname):
     header = ['struc', 'unq', 'tot', 'sym', 'p1', 'p1score', 'p1cls',
               'p2', 'p2score', 'p2cls', 'int',]
-    with open('data/pairwise_trimers.tsv', 'w') as outfile:
+    with open(ofname, 'w') as outfile:
         outfile.write('\t'.join(header) + '\n')
         for struc in pool:
             cdict = {c.chn: (c.prot, c.score, c.dclass) for c in struc.chains}
@@ -270,10 +270,10 @@ def pairwise(pool):
                 info = [str(i) for i in info]
                 outfile.write('\t'.join(info) + '\n')
 
-def protwise(pool):
+def protwise(pool, ofname):
     with open('data/mouse_genes_ned.txt') as infile:
         pdict = {i.split(',')[0]: i.split(',')[-1].strip() for i in infile}
-    with open('data/protwise_trimers.tsv', 'w') as outfile:
+    with open(ofname, 'w') as outfile:
         header = ['struc', 'unq', 'tot', 'sym', 'prot', 's', 'ab', 'dcls']
         outfile.write('\t'.join(header) + '\n')
         for struc in pool:
@@ -284,13 +284,21 @@ def protwise(pool):
                 outfile.write('\t'.join(info) + '\n')
 
 if __name__ == '__main__':
-    pool = pipeline(3)
+    # pool = pipeline(3)
+    # summary(pool, 'unq')
+    # pairwise(pool, 'data/pairwise_trimers.tsv')
+    # protwise(pool, 'data/protwise_trimers.tsv')
+    pool = pipeline(2)
     summary(pool, 'unq')
-    pairwise(pool)
-    protwise(pool)
+    # pairwise(pool, 'data/pairwise.tsv')
+    # protwise(pool, 'data/protwise.tsv')
     # for struc in pipeline():
     #     print(struc)
     #     for i in struc.interfaces:
     #         print(i, struc.interfaces[i])
     #     print()
 
+TODO:
+# DO N proteins form more interface in total over the complex.
+# StringDB coexpression measurements - Avg coexpression with every other subunit (regardless of missing data)
+# possible fig based on distribution of N/E proteins as complexes get larger.

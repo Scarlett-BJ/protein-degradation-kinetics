@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
+import ixntools as ix
 from expression import paxdb, proteomicsdb, proteomicsdb_requests as req
 import numpy as np
+from scipy.stats import binom_test
+
 
 def load_data(filename):
     with open(filename) as infile:
@@ -102,22 +105,38 @@ def load_proteomicsdb_data():
             newline = '\t'.join([prot] + expression + [tcount, line[-1]])
             outfile.write(newline + '\n')
 
-
-
-
-def get_missing():
-    abunds = proteomicsdb.Abundances('trembl_tissues.txt')
-    abunds_iso = proteomicsdb.Abundances('human_protdb_isoforms_expression.txt')
-    data = load_data('data/NED_human.txt')[1]
-    prots = {line[0] for line in data}
-    missing = prots.intersection(abunds_iso.proteins.union(abunds.proteins))
-    print(len(prots) - len(missing))
+def test_tissue_count_corum():
+    with open('data/human_proteomicsdb_tissue_expression.txt') as infile:
+        data = [line.strip().split('\t') for line in infile]
+    data = {line[0]: [int(line[-2]),  line[-1]] for line in data[1:]}
+    core = ix.dbloader.LoadCorum('Human', 'core')
+    success, trials = 0, 0
+    for struc in core.strucs:
+        nvals = []
+        evals = []
+        subunits = core[struc].uniprot
+        for sub in subunits:
+            if len(sub) == 1 and sub[0] in data:
+                if data[sub[0]][1] != 'ED':
+                    nvals.append(data[sub[0]][0])
+                elif data[sub[0]][1] == 'ED':
+                    evals.append(data[sub[0]][0])
+            else:
+                for p in sub:
+                    if p in data and data[p][1] != 'ED':
+                        nvals.append(data[p][0])
+                        break
+                    elif p in data and data[p][1] == 'ED':
+                        evals.append(data[p][0])
+                        break
+        if len(evals) > 0 and len(nvals) > 0:
+            trials += 1
+            if np.median(nvals) >= np.median(evals):
+                success += 1
+    print(success, trials, binom_test(success, trials))
 
 
 
 if __name__ == '__main__':
-    # print_expression_data('mouse')
-    # print_expression_data('human')
-    load_proteomicsdb_data()
-    # help(req)
-    # get_missing()
+    test_tissue_count_corum()
+    help(binom_test)

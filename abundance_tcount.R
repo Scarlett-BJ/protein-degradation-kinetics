@@ -45,94 +45,91 @@ for (t in levels(df_protdb_human$tissue)){
 }
 df_protdb_human <- filter(df_protdb_human, tissue %in% tissues)
 df_protdb_human <- droplevels(df_protdb_human)
+tissues <- c()
+for (t in levels(df_protdb_human$tissue)){
+  if (var(filter(df_protdb_human, tissue == t)$tcount) > 150){
+    tissues <- c(tissues, t)   
+  }
+}
+df_protdb_human <- filter(df_protdb_human, tissue %in% tissues)
+df_protdb_human <- droplevels(df_protdb_human)
 df_protdb_human <- na.omit(df_protdb_human)
 df_protdb_human$bin <- cut(df_protdb_human$abund, c(1, 2, 3, 4, 5, 6, 7, 8, 9))
 
-
-# Linear model plots
-plot_linear_models <- function(df){
-  # df[df$def == "UN",]$def <- "NED"
-  plt <- ggplot(df, aes(x = abund, y = tcount))
-  cat_colours <- c("dodgerblue", "firebrick", "darkgoldenrod1")
-  line_colours <- c("dodgerblue", "firebrick4", "darkorange3")
-  index <- 1
-  plt_lm <- plt
-  for (category in c("UN", "NED", "ED")){
-    plt_lm <- plt_lm +
-      geom_jitter(data = filter(df, def == category),
-                  alpha = 0.35,
-                  colour = c(cat_colours[index]))
-    index <- index + 1
-  }
-  index <- 1
-  for (category in c("UN", "NED", "ED")){
-    plt_lm <- plt_lm +
-      geom_smooth(data = filter(df, def == category), 
-                  method = "lm",
-                  # formula = y ~ s(x, bs = "cs"),
-                  colour = c(line_colours[index]),
-                  fill = c(line_colours[index]),
-                  lwd = 1)
-    index <- index + 1
-  }
-  return (plt_lm)
-}
-plot_linear_models(filter(df_protdb_human, tissue == "ovary")) + ylim(0, 65)
-
-# Display linear model plots
-plot_linear_models(df_protdb_human) + facet_wrap(~ tissue)
-
-
-plot_linear_models(df_human_tissues) + 
-  facet_wrap(~ tissue) +
-  ylim(0.5, 19.5)
-
-plot_linear_models(df_mouse_tissues) + 
-  facet_wrap(~ tissue) +
-  ylim(0.5, 8.5)
-  
-plot_linear_models(df_human_whole) + 
-  ylim(0.5, 19.5)
-
-plot_linear_models(df_mouse_whole) + 
-  ylim(0.5, 8.5)
-
-plot_linear_models(df_human_tissues)
-
-plot_linear_models(df_mouse_tissues) +
-  ylim(0.5, 8.5)
-
-
 # Binned boxplots
 plot_binned_boxplots <- function(df){
-  df[df$def == "UN",]$def <- "NED"
+  # df[df$def == "UN",]$def <- "NED"
+  # df <- filter(df, def != "UN")
   df <- na.omit(df)
-  plt <- ggplot(df, aes(x = bin, y = tcount, fill = def))
+  df <- mutate(df, tbin = cut(df$tcount, c(1, 10, 20, 30, 40, 50, 60)),
+               abin = cut(df$abund, c(1, 2, 3, 4, 5, 6, 7, 8, 9)))
+  plt <- ggplot(df, aes(y = tcount, x = abin, fill = def))
   plt_bbox <- plt + 
     geom_boxplot(position = position_dodge(), outlier.size = 0.1,
-                 notch = TRUE) +
-    scale_fill_manual(values =  c("darkgoldenrod1", "darkred"))
+                 notch = FALSE) +
+#     scale_x_discrete(labels = c("2 - 3", "3 - 4", "4 - 5", 
+#                                 "5 - 6", "6 - 7", "7 - 8")) +
+    scale_fill_manual(values =  c("darkgoldenrod1", "darkred", "cadetblue4")) +
+#     ylab("Tissues in which protein is expressed") +
+#     xlab("Binned protein abundance, (log10 iBAQ intensity)") +
+    labs(fill = "Decay class")
   return(plt_bbox)
 }
 
-plot_binned_boxplots(df_protdb_human) + facet_wrap(~ tissue)
+plot_binned_boxplots(df_protdb_human)
 plot_binned_boxplots(filter(df_protdb_human, tissue == "ovary"))
 
 # Median boxplot
 plot_median_boxplot <- function(df){
   df[df$def == "UN",]$def <- "NED"
-  plt <- ggplot(filter(df, abund >= summary(df$abund)[2] &
-                         abund <= summary(df$abund)[3]),
-                aes(x = def, y = tcount, fill = def)) +
+  df <- filter(df, def != "UN")
+  quartile1 <- summary(df$abund)[2]
+  median <- summary(df$abund)[3]
+  quartile3 <- summary(df$abund)[5]
+  df <- filter(df, abund >= quartile1 & abund <= quartile3)
+  plt <- ggplot(df,aes(x = def, y = tcount, fill = def)) +
     # geom_violin(adjust = 2) +
     geom_boxplot(notch = T) +
     scale_fill_manual(values =  c("darkgoldenrod1", "darkred")) +
     theme(legend.position = "none")
-  print(wilcox.test(filter(df, def == "ED")$abund, 
-                    filter(df, def == "NED")$abund))
-  print(median(filter(df, def == "NED")$tcount))
-  print(median(filter(df, def == "ED")$tcount))
+  print(wilcox.test(filter(df, def == "ED")$tcount, 
+                    filter(df, def == "NED")$tcount))
+  print(mean(filter(df, def == "NED")$tcount))
+  print(mean(filter(df, def == "ED")$tcount))
   return(plt)
 }
-plot_median_boxplot(df_protdb_human) + facet_wrap(~ tissues)
+plot_median_boxplot(filter(df_protdb_human, tissue == "ovary"))
 
+# Linear model
+plot_linear <- function(df){
+  df[df$def == "UN",]$def <- "NED"
+  df <- droplevels(df)
+  df$def <- factor(df$def, levels = c("ED", "NED"))
+  df
+  plt <- ggplot(df, aes(x = abund, y = tcount, colour = def, fill = def)) +
+    geom_jitter(alpha = 0.35, size = 1.5) +
+    geom_smooth(lwd = 1.2, method = "lm") +
+    scale_colour_manual(values = c("darkorange", "firebrick"),
+                        labels = c("ED", "NED or UN")) +
+    scale_fill_manual(values = c("darkgoldenrod1", "firebrick"),
+                      labels = c("ED", "NED or UN")) +
+    # ylim(c(0, 65)) +
+#     ylab("Tissues in which protein is expressed") +
+#     xlab("Protein abundance, (log10 iBAQ intensity)") +
+    labs(fill = "Decay class", colour = "Decay class")
+  return(plt)
+}
+plot_linear(filter(df_protdb_human, tissue == "ovary"))
+
+# Simple Density plot
+tissue_count_density <- function(df){
+  df$def <- factor(df$def, levels = c("NED", "UN", "ED"))
+  plt <- ggplot(df, aes(x = tcount, fill = def)) +
+    geom_density(alpha = 0.7, adjust = 2) +
+    scale_fill_manual(values = c("darkred", "cadetblue4", "darkgoldenrod1")) +
+    xlab("Number of tissues in which protein is expressed") +
+    ylab("Density") +
+    labs(fill = "Decay class")
+  return(plt)
+}
+tissue_count_density(df_protdb_human)

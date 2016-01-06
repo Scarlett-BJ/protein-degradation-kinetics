@@ -1,6 +1,6 @@
 #!/usr/bin/env julia
 
-function load_data2(filename)
+function load_data(filename)
     infile = open(filename)
     data = readlines(infile)
     close(infile)
@@ -9,11 +9,11 @@ function load_data2(filename)
     return header, data
 end
 
-
+function
 
 heinfile = "../../ixntools/human/hein/hein.csv"
 nedfile = "../../halflife/halflife/data/NED_human.txt"
-header, data = load_data2(heinfile)
+header, data = load_data(heinfile)
 println(header)
-println(data[1][2])
+println(data[1][1:end])
 # println(nedhead)

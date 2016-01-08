@@ -139,4 +139,3 @@ def test_tissue_count_corum():
 
 if __name__ == '__main__':
     test_tissue_count_corum()
-    help(binom_test)

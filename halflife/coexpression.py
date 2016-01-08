@@ -9,55 +9,12 @@ from scipy.stats import binom_test
 import random
 import re
 
-# def load_mouse_prot_map():
-#     data_dict = {}
-#     with open('data/mouse_genes_ned.txt') as infile:
-#         data = [line.strip().split(',') for line in infile.readlines()]
-#     for line in data:
-#         data_dict[line[0]] = {'ensg': line[2], 'gene': line[1],
-#                               'ensp': line[3]}
-#     return data_dict
-
 def load_data(filename):
     with open(filename) as infile:
         data = [line.split() for line in infile]
     header = data[0]
     data = data[1:]
     return header, data
-
-# def get_complexes(header, data):
-#     """Returns a dictionary of complexes. Each complex contains a list of
-#     namedtuples with information about the complex and proteins.
-
-#     DEPRECATED
-#     """
-#     [str(i.strip('.')) for i in header[1:]]
-#     Info = namedtuple('Header', [str(i.strip('.')) for i in header[1:]])
-#     cdict = {}
-#     for line in data:
-#         if line[0] not in cdict:
-#             cdict[line[0]] = [Info(*line[1:])]
-#         else:
-#             cdict[line[0]].append(Info(*line[1:]))
-#     return cdict
-
-# def get_coexpression():
-#     """DEPRECATED"""
-#     gene_map = load_mouse_prot_map()
-#     coex = coexpressdb.Coexpression()
-#     data = load_pairwise()
-#     for line in data[1:]:
-#         if line[4] == 'NA' or line[7] == 'NA':
-#             print('\t'.join(line))
-#             continue
-#         ensp1 = gene_map[line[4]]['ensp']
-#         ensp2 = gene_map[line[7]]['ensp']
-#         if ensp1 not in coex.entrez or ensp2 not in coex.entrez:
-#             print('\t'.join(line))
-#             continue
-#         c = coex.get_coexpression(ensp1, ensp2)
-#         line.append(str(c))
-#         print('\t'.join(line))
 
 def calculate_avg_coexpression(coex, members):
     """Calculates the average coexpression for each protein in the complex.
@@ -157,6 +114,7 @@ def analyse_corum_data(filename, rand=False):
         strucs[line[0]].append(tuple(line[-3:-1]))
     success = 0
     trials = 0
+    strucs_for_plot = []
     for struc in strucs:
         nvals = []
         evals = []
@@ -172,26 +130,26 @@ def analyse_corum_data(filename, rand=False):
         for subunit in comp:
             if subunit[0] == 'NA':
                 continue
-            if subunit[1] == 'UN':
+            if subunit[1] == 'NED':
                 nvals.append(float(subunit[0]))
             elif subunit[1] == 'ED':
                 evals.append(float(subunit[0]))
         if len(nvals) == 0 or len(evals) == 0 or nvals == evals:
             continue
+        strucs_for_plot.append(struc)
         trials += 1
         if np.mean(nvals) > np.mean(evals):
             success += 1
-    print(success, trials, binom_test(success, trials))
-    all_neds = [float(i[-3]) for i in data if i[-2] == 'NED' if i[-3] != 'NA']
-    all_eds = [float(i[-3]) for i in data if i[-2] == 'ED' if i[-3] != 'NA']
-    all_uns = [float(i[-3]) for i in data if i[-2] == 'UN' if i[-3] != 'NA']
-    all_nas = [float(i[-3]) for i in data if i[-2] == 'NA' if i[-3] != 'NA']
-    print(np.var(all_neds))
-    print(np.median(all_eds))
-    print(np.median(all_uns))
-    print(np.var(all_nas))
-    print()
-
+    # print(success, trials, binom_test(success, trials))
+    # all_neds = [float(i[-3]) for i in data if i[-2] == 'NED' if i[-3] != 'NA']
+    # all_eds = [float(i[-3]) for i in data if i[-2] == 'ED' if i[-3] != 'NA']
+    # all_uns = [float(i[-3]) for i in data if i[-2] == 'UN' if i[-3] != 'NA']
+    # all_nas = [float(i[-3]) for i in data if i[-2] == 'NA' if i[-3] != 'NA']
+    # print(np.var(all_neds))
+    # print(np.median(all_eds))
+    # print(np.median(all_uns))
+    # print(np.var(all_nas))
+    print('\n'.join(strucs_for_plot))
 
 if __name__ == '__main__':
     # analyse_corum_data('data/coexpressdb_corum_human.tsv', rand=True)

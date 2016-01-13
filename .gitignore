@@ -1,8 +1,30 @@
-*.ini
-*.pov
-*.png
-*.txt
-dbscan.py
-data/
+# Byte-compiled / optimized / DLL files
 __pycache__/
-.DS_Store/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Package specific
+.DS_Store
+__pycache__/
+*.pdf

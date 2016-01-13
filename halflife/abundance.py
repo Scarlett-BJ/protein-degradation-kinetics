@@ -7,6 +7,7 @@ from scipy.stats import binom_test
 
 
 def load_data(filename):
+    """Returns header and data from NED files."""
     with open(filename) as infile:
         data = [line.split() for line in infile]
     header = data[0]
@@ -14,6 +15,7 @@ def load_data(filename):
     return header, data
 
 def protein_list(species):
+    """Lists uniprot accession codes in NED data."""
     if species == 'mouse':
         prots = [line[0] for line in load_data('data/NED_mouse_update.txt')[1]]
     elif species == 'human':
@@ -21,6 +23,7 @@ def protein_list(species):
     return prots
 
 def protein_map(species):
+    """Returns dictionary of uniprot accession codes to ensp IDs."""
     if species == 'mouse':
         filename = 'data/mouse_uniprot_ensp.txt'
     elif species == 'human':
@@ -35,7 +38,7 @@ def protein_map(species):
             prot_map[line[0]].append(line[1])
     return prot_map
 
-def load_expression_data(species):
+def load_paxdb_data(species):
     if species == 'mouse':
         data = load_data('data/NED_mouse_update.txt')[1]
         meta = paxdb.get_metadata('10090')
@@ -106,7 +109,8 @@ def load_proteomicsdb_data():
             outfile.write(newline + '\n')
 
 def test_tissue_count_corum():
-    with open('data/human_proteomicsdb_tissue_expression.txt') as infile:
+    fname = 'data/abundance/human_protdb_limited_tissues.txt'
+    with open(fname) as infile:
         data = [line.strip().split('\t') for line in infile]
     data = {line[0]: [int(line[-2]),  line[-1]] for line in data[1:]}
     core = ix.dbloader.LoadCorum('Human', 'core')
@@ -131,11 +135,48 @@ def test_tissue_count_corum():
                         break
         if len(evals) > 0 and len(nvals) > 0:
             trials += 1
-            if np.median(nvals) >= np.median(evals):
+            if np.mean(nvals) >= np.mean(evals):
                 success += 1
     print(success, trials, binom_test(success, trials))
 
+def abundance_binomial_test(i):
+    fname = 'data/abundance/mouse_paxdb_tissue_expression.txt'
+    with open(fname) as infile:
+        data = [line.strip().split('\t') for line in infile]
+        header = data[0]
+    data = {line[0]: [float(line[i]),  line[-1]] for line in data[1:]
+            if line[i] != 'NA'}
+    core = ix.dbloader.LoadCorum('Mouse', 'core')
+    success, trials = 0, 0
+    for struc in core.strucs:
+        nvals = []
+        evals = []
+        subunits = core[struc].uniprot
+        for sub in subunits:
+            if len(sub) == 1 and sub[0] in data:
+                if data[sub[0]][1] != 'ED':
+                    nvals.append(data[sub[0]][0])
+                elif data[sub[0]][1] == 'ED':
+                    evals.append(data[sub[0]][0])
+            else:
+                for p in sub:
+                    if p in data and data[p][1] != 'ED':
+                        nvals.append(data[p][0])
+                        break
+                    elif p in data and data[p][1] == 'ED':
+                        evals.append(data[p][0])
+                        break
+        if len(evals) > 0 and len(nvals) > 0:
+            trials += 1
+            if np.mean(nvals) >= np.mean(evals):
+                success += 1
+    print(header[i], success, trials, binom_test(success, trials))
 
+def main():
+    for i in range(1, 10):
+        abundance_binomial_test(i)
 
 if __name__ == '__main__':
+    # main()
     test_tissue_count_corum()
+

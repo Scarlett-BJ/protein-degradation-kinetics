@@ -27,4 +27,5 @@ var/
 # Package specific
 .DS_Store
 __pycache__/
+figures/
 *.pdf

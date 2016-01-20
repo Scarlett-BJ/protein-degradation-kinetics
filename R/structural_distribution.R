@@ -3,6 +3,7 @@ library("dplyr")
 library("scales")
 library("gridExtra")
 library("RColorBrewer")
+library("dgof")
 
 humanf <- "halflife/halflife/data/structural/NED_quaternary_human.txt"
 mousef <- "halflife/halflife/data/structural/NED_quaternary_mouse.txt"
@@ -39,9 +40,7 @@ stacked_plotter <- function(df){
              colour = c("black"), lwd = 0.4) +
     scale_y_continuous(labels = percent) +
     scale_fill_manual(values = cols) +
-    xlab("Decay class") +
-    ylab("Genes") +
-    labs(fill = "") +
+    labs(x = "", y = "Genes", fill = "") +
     theme(text = element_text(size = 10),
           legend.key.size = unit(0.5, "cm")) +
     facet_grid(. ~ species) 
@@ -69,14 +68,23 @@ density_plotter <- function(df){
   df$decay.class <- factor(df$decay.class, levels = c("U", "E", "N"))
   levels(df$decay.class) <- c("UN", "ED", "NED")
   plt <- ggplot(df, aes(x = unq)) +
-    geom_density(aes(fill = decay.class), alpha = 0.7, adjust = 1.5, lwd = 0.4) +
+    geom_density(aes(fill = decay.class), alpha = 0.7, adjust = 1, lwd = 0.4) +
     scale_fill_manual(values =  c("cadetblue4", "darkgoldenrod1", "darkred")) +
     scale_x_log10(lim = c(2, 128), 
                   breaks = c(2, 4, 8, 16, 32, 64, 128)) +
-    labs(x = "Number of subunits", y = "Density", fill = "") +
+    labs(x = "Number of unique subunits", y = "Density", fill = "") +
     theme(text = element_text(size = 10), 
           legend.key.size = unit(0.5, "cm")) +
-    facet_grid(. ~ species) 
+    facet_grid(. ~ species)
   return(plt)
 }
-grid.arrange(stacked, density_plotter(df_combined) )
+
+dgof_ks <- function(df, c1, c2){
+  c1v <- factor(filter(df, qtype == "het", decay.class == c1)$unq)
+  c2v <- factor(filter(df, qtype == "het", decay.class == c2)$unq)
+  print(ks.test(c1v, ecdf(c2v), simulate.p.value = TRUE, exact = FALSE))
+}
+dgof_ks(df_human, "N", "E")
+
+stacked 
+density_plotter(df_combined)

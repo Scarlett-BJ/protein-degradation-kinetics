@@ -6,17 +6,26 @@ colnames(df_corum) <- c("complex.id", "entrez.id", "uniprot.id",
                         "avg.coexpression", "decay.class", "species")
 
 density_plotter <- function(df){
-  df <- filter(df, !is.na(decay.class))
+  df <- df %>% 
+    group_by(complex.id) %>%
+    mutate(unq = n())
+  df$bin <- cut(df$unq, c(0, 5, 10, 15, 20, 25, 30, 40, 80, 120))
+  levels(df$bin) <- c("0-5", "5-10", "10-15", "15-20", "20-25", "25-30",
+                      "30-40", "40-80", "80-120")
+  df <- na.omit(df)
   df$decay.class <- factor(df$decay.class, levels = c("UN", "ED", "NED"))
   plt <- ggplot(df, aes(x = avg.coexpression, fill = decay.class)) +
     geom_density(alpha = 0.7) +
     scale_fill_manual(values = c("cadetblue4", "darkgoldenrod1", "darkred")) +
-    xlab("Average coexpression (Pearson's r)") +
-    ylab("Density") +
-    labs(fill = "Decay class")
+    labs(x = "Average subunit coexpression (Pearson's r)",
+         y = "Density",
+         fill = "Decay") +
+    theme(text = element_text(size = 10),
+          legend.key.size = unit(0.5, "cm"))
   return(plt)
 }
-density_plotter(df_corum)
+density_plotter(df_corum) + facet_wrap(~ bin)
+
 
 bin_plotter <- function(df, interval){
   df_counts <- count(df, complex.id)
@@ -31,15 +40,15 @@ bin_plotter <- function(df, interval){
 bin_plotter(df_corum, 10)
 
 box_plotter <- function(df){
-  # df <- filter(df, !is.na(decay.class))
+  df <- filter(df, !is.na(decay.class))
   df$decay.class <- factor(df$decay.class, levels = c("NED", "UN", "ED"))
   plt <- ggplot(df, aes(x = decay.class, y = avg.coexpression,
                         fill = decay.class)) +
     geom_boxplot(notch = TRUE, outlier.size = 0.75) +
     scale_fill_manual(values = c("darkred", "cadetblue4", "darkgoldenrod1")) +
-    xlab("Decay class") +
-    ylab("Average coexpression (Pearson's r)") +
-    theme(legend.position = "none")
+    labs(x = "", y = "Average subunit coexpression (Pearson's r)") +
+    theme(text = element_text(size = 10),
+          legend.position = "none")
   return(plt)
 }
 box_plotter(df_corum)

@@ -105,10 +105,10 @@ def process_corum_data(species):
                     info = get_best_from_multiple_subs(subunit)
                 outfile.write('\t'.join(info) + '\n')
 
-def analyse_corum_data(filename, rand=False):
-    """Predominantly bionmial test"""
+def analyse_corum_data(filename):
+    """Per complex binomial test for average subunit coexpression."""
     with open(filename) as infile:
-        data = [line.strip().split('\t') for line in infile]
+        data = [line.strip().split('\t') for line in infile if '']
     strucs = {line[0]: [] for line in data}
     for line in data:
         strucs[line[0]].append(tuple(line[-3:-1]))
@@ -140,18 +140,11 @@ def analyse_corum_data(filename, rand=False):
         trials += 1
         if np.mean(nvals) > np.mean(evals):
             success += 1
-    # print(success, trials, binom_test(success, trials))
-    # all_neds = [float(i[-3]) for i in data if i[-2] == 'NED' if i[-3] != 'NA']
-    # all_eds = [float(i[-3]) for i in data if i[-2] == 'ED' if i[-3] != 'NA']
-    # all_uns = [float(i[-3]) for i in data if i[-2] == 'UN' if i[-3] != 'NA']
-    # all_nas = [float(i[-3]) for i in data if i[-2] == 'NA' if i[-3] != 'NA']
-    # print(np.var(all_neds))
-    # print(np.median(all_eds))
-    # print(np.median(all_uns))
-    # print(np.var(all_nas))
-    print('\n'.join(strucs_for_plot))
+    print(success, trials, binom_test(success, trials))
+
+def main():
+    analyse_corum_data('data/coexpressdb_corum_combined.tsv')
+
 
 if __name__ == '__main__':
-    # analyse_corum_data('data/coexpressdb_corum_human.tsv', rand=True)
-    # analyse_corum_data('data/coexpressdb_corum_mouse.tsv', rand=True)
-    analyse_corum_data('data/coexpressdb_corum_combined.tsv')
+    main()

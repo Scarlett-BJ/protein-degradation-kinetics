@@ -4,23 +4,16 @@ import ixntools as ix
 from expression import paxdb, proteomicsdb, proteomicsdb_requests as req
 import numpy as np
 from scipy.stats import binom_test
+from collections import namedtuple
 
 
-def load_data(filename):
+def load_NED_data(filename, sep='\t'):
     """Returns header and data from NED files."""
     with open(filename) as infile:
-        data = [line.split() for line in infile]
+        data = [line.strip().split(sep) for line in infile]
     header = data[0]
     data = data[1:]
     return header, data
-
-def protein_list(species):
-    """Lists uniprot accession codes in NED data."""
-    if species == 'mouse':
-        prots = [line[0] for line in load_data('data/NED_mouse_update.txt')[1]]
-    elif species == 'human':
-        prots = [line[0] for line in load_data('data/NED_human.txt')[1]]
-    return prots
 
 def protein_map(species):
     """Returns dictionary of uniprot accession codes to ensp IDs."""
@@ -40,11 +33,11 @@ def protein_map(species):
 
 def load_paxdb_data(species):
     if species == 'mouse':
-        data = load_data('data/NED_mouse_update.txt')[1]
+        data = load_NED_data('data/NED_mouse_update.txt')[1]
         meta = paxdb.get_metadata('10090')
         pmap = protein_map('mouse')
     elif species == 'human':
-        data = load_data('data/NED_human.txt')[1]
+        data = load_NED_data('data/NED_human.txt')[1]
         meta = paxdb.get_metadata('9606')
         pmap = protein_map('human')
     skip = ['CELL_LINE']
@@ -78,7 +71,7 @@ def print_expression_data(species):
             outfile.write(newline + '\n')
 
 def load_proteomicsdb_data():
-    data = load_data('data/NED_human.txt')[1]
+    data = load_NED_data('data/NED_human.txt')[1]
     isoab = proteomicsdb.Abundances('human_protdb_isoforms_expression.txt')
     abunds = proteomicsdb.Abundances('trembl_tissues.txt')
     tissues = abunds.tissues
@@ -108,8 +101,8 @@ def load_proteomicsdb_data():
             newline = '\t'.join([prot] + expression + [tcount, line[-1]])
             outfile.write(newline + '\n')
 
-def test_tissue_count_corum():
-    fname = 'data/abundance/human_protdb_limited_tissues.txt'
+def tcount_binomial_test():
+    fname = 'data/abundance/human_proteomicsdb_tissue_expression.txt'
     with open(fname) as infile:
         data = [line.strip().split('\t') for line in infile]
     data = {line[0]: [int(line[-2]),  line[-1]] for line in data[1:]}
@@ -121,13 +114,13 @@ def test_tissue_count_corum():
         subunits = core[struc].uniprot
         for sub in subunits:
             if len(sub) == 1 and sub[0] in data:
-                if data[sub[0]][1] != 'ED':
+                if data[sub[0]][1] == 'NED':
                     nvals.append(data[sub[0]][0])
                 elif data[sub[0]][1] == 'ED':
                     evals.append(data[sub[0]][0])
             else:
                 for p in sub:
-                    if p in data and data[p][1] != 'ED':
+                    if p in data and data[p][1] == 'NED':
                         nvals.append(data[p][0])
                         break
                     elif p in data and data[p][1] == 'ED':
@@ -139,44 +132,49 @@ def test_tissue_count_corum():
                 success += 1
     print(success, trials, binom_test(success, trials))
 
-def abundance_binomial_test(i):
-    fname = 'data/abundance/mouse_paxdb_tissue_expression.txt'
-    with open(fname) as infile:
-        data = [line.strip().split('\t') for line in infile]
-        header = data[0]
-    data = {line[0]: [float(line[i]),  line[-1]] for line in data[1:]
-            if line[i] != 'NA'}
-    core = ix.dbloader.LoadCorum('Mouse', 'core')
+def abundance_binomial_test():
+    core = ix.dbloader.LoadCorum('Human', 'core')
+    header, data = load_NED_data('data/NED_mouse.txt')
+    homologs = map_mouse_homologs()
+    Prot = namedtuple('Prot', ['abundance', 'decay'])
+    prots = {homologs[line[0]]: Prot(float(line[-1]), line[-2])
+             for line in data if line[0] in homologs}
     success, trials = 0, 0
     for struc in core.strucs:
         nvals = []
         evals = []
         subunits = core[struc].uniprot
         for sub in subunits:
-            if len(sub) == 1 and sub[0] in data:
-                if data[sub[0]][1] != 'ED':
-                    nvals.append(data[sub[0]][0])
-                elif data[sub[0]][1] == 'ED':
-                    evals.append(data[sub[0]][0])
+            # Deals with ambiguous (bracketed) subunits
+            if len(sub) == 1 and sub[0] in prots:
+                if prots[sub[0]].decay == 'NED':
+                    nvals.append(prots[sub[0]].abundance)
+                elif prots[sub[0]].decay == 'ED':
+                    evals.append(prots[sub[0]].abundance)
             else:
                 for p in sub:
-                    if p in data and data[p][1] != 'ED':
-                        nvals.append(data[p][0])
+                    if p in prots and prots[p].decay == 'NED':
+                        nvals.append(prots[p].abundance)
                         break
-                    elif p in data and data[p][1] == 'ED':
-                        evals.append(data[p][0])
+                    elif p in prots and prots[p].decay == 'ED':
+                        evals.append(prots[p].abundance)
                         break
         if len(evals) > 0 and len(nvals) > 0:
             trials += 1
             if np.mean(nvals) >= np.mean(evals):
                 success += 1
-    print(header[i], success, trials, binom_test(success, trials))
+    print(success, trials, binom_test(success, trials))
+
+def map_mouse_homologs():
+    with open('data/homologs.txt') as infile:
+        homologs = {l.split()[0]: l.split()[1] for l in infile}
+        homologs.pop('mouse')
+    return homologs
 
 def main():
-    for i in range(1, 10):
-        abundance_binomial_test(i)
+    abundance_binomial_test()
+    tcount_binomial_test()
+
 
 if __name__ == '__main__':
-    # main()
-    test_tissue_count_corum()
-
+    main()

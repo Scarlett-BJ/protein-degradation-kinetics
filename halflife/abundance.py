@@ -33,11 +33,11 @@ def protein_map(species):
 
 def load_paxdb_data(species):
     if species == 'mouse':
-        data = load_NED_data('data/NED_mouse_update.txt')[1]
+        data = load_NED_data('data/NED_mouse_Abund.txt')[1]
         meta = paxdb.get_metadata('10090')
         pmap = protein_map('mouse')
     elif species == 'human':
-        data = load_NED_data('data/NED_human.txt')[1]
+        data = load_NED_data('data/NED_human_Abund.txt')[1]
         meta = paxdb.get_metadata('9606')
         pmap = protein_map('human')
     skip = ['CELL_LINE']
@@ -132,13 +132,17 @@ def tcount_binomial_test():
                 success += 1
     print(success, trials, binom_test(success, trials))
 
-def abundance_binomial_test():
-    core = ix.dbloader.LoadCorum('Human', 'core')
-    header, data = load_NED_data('data/NED_mouse.txt')
-    homologs = map_mouse_homologs()
+def abundance_binomial_test(species, homologs=False):
+    header, data = load_NED_data('data/NED_{0}_Abund.txt'.format(species))
     Prot = namedtuple('Prot', ['abundance', 'decay'])
-    prots = {homologs[line[0]]: Prot(float(line[-1]), line[-2])
-             for line in data if line[0] in homologs}
+    if homologs == True:
+        core = ix.dbloader.LoadCorum('Human', 'core')
+        homs = map_mouse_homologs()
+        prots = {homs[line[-2]]: Prot(np.log(float(line[-4])), line[-3])
+                 for line in data if line[-2] in homs}
+    else:
+        core = ix.dbloader.LoadCorum(species.title(), 'core')
+        prots = {line[-2]: Prot(float(line[-4]), line[-3]) for line in data}
     success, trials = 0, 0
     for struc in core.strucs:
         nvals = []
@@ -165,15 +169,63 @@ def abundance_binomial_test():
                 success += 1
     print(success, trials, binom_test(success, trials))
 
+def tissue_count2(species, homologs=False):
+    header, data = load_NED_data('data/NED_{0}_Abund.txt'.format(species))
+
+    fname = 'data/abundance/human_proteomicsdb_tissue_expression.txt'
+    with open(fname) as infile:
+        tdata = [line.strip().split('\t') for line in infile]
+    tcounts = {line[0]: int(line[-2]) for line in tdata[1:]}
+
+    Prot = namedtuple('Prot', ['tcount', 'decay'])
+    if homologs == True:
+        core = ix.dbloader.LoadCorum('Human', 'core')
+        homs = map_mouse_homologs()
+        prots = {homs[line[-2]]: (Prot(tcounts[homs[line[-2]]], line[-3]))
+                 for line in data if line[-2] in homs and homs[line[-2]]
+                 in tcounts}
+    else:
+        core = ix.dbloader.LoadCorum(species.title(), 'core')
+        prots = {line[-2]: Prot(tcounts[line[-2]], line[-3]) for line in data
+                 if line[-2] in tcounts}
+    success, trials = 0, 0
+    for struc in core.strucs:
+        nvals = []
+        evals = []
+        subunits = core[struc].uniprot
+        for sub in subunits:
+            # Deals with ambiguous (bracketed) subunits
+            if len(sub) == 1 and sub[0] in prots:
+                if prots[sub[0]].decay == 'NED':
+                    nvals.append(prots[sub[0]].tcount)
+                elif prots[sub[0]].decay == 'ED':
+                    evals.append(prots[sub[0]].tcount)
+            else:
+                for p in sub:
+                    if p in prots and prots[p].decay == 'NED':
+                        nvals.append(prots[p].tcount)
+                        break
+                    elif p in prots and prots[p].decay == 'ED':
+                        evals.append(prots[p].tcount)
+                        break
+        if len(evals) > 0 and len(nvals) > 0:
+            trials += 1
+            if np.mean(nvals) >= np.mean(evals):
+                success += 1
+    print(success, trials, binom_test(success, trials))
+
 def map_mouse_homologs():
-    with open('data/homologs.txt') as infile:
+    with open('data/uniprot_homologs.txt') as infile:
+        infile.readline()
         homologs = {l.split()[0]: l.split()[1] for l in infile}
-        homologs.pop('mouse')
     return homologs
 
 def main():
-    abundance_binomial_test()
-    tcount_binomial_test()
+    abundance_binomial_test('mouse', True)
+    abundance_binomial_test('human')
+    # tissue_count2('mouse', True)
+    tissue_count2('mouse', True)
+    tissue_count2('human', False)
 
 
 if __name__ == '__main__':

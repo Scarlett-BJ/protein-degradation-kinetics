@@ -169,6 +169,6 @@ def main():
     coexpression_corum_data('data/coexpressdb_corum_combined.tsv')
 
 if __name__ == '__main__':
-    # main()
-    generic()
+    main()
+    # generic()
     # print(get_coexpression())

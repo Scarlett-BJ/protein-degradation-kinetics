@@ -29,3 +29,4 @@ var/
 __pycache__/
 figures/
 *.pdf
+*.tmp

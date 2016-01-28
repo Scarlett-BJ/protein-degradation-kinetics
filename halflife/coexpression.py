@@ -198,15 +198,21 @@ def coexpression_binomial(filename):
 
 
 def main():
-    # tab = CoexpressTable('mouse', homologs=True)
+    # Mouse Homologs
+    tab = CoexpressTable('mouse', homologs=True)
+    tab.process_data()
+    tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
+    coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
+    # # Human complexes
+    # tab = CoexpressTable('human')
     # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
-    analyse_corum_data('data/coexpressdb_corum_mouse_homologs.tsv')
-
+    # tab.write_to_file('data/coexpressdb_corum_human.tsv')
+    # coexpression_binomial('data/coexpressdb_corum_human.tsv')
+    # # Mouse complexes
     # tab = CoexpressTable('mouse')
     # tab.process_data()
     # tab.write_to_file('data/coexpressdb_corum_mouse.tsv')
-    analyse_corum_data('data/coexpressdb_corum_human.tsv')
+    # coexpression_binomial('data/coexpressdb_corum_mouse.tsv')
 
 if __name__ == '__main__':
     main()

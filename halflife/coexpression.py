@@ -14,115 +14,70 @@ log = logging.getLogger('coexpression')
 ###############################################################################
 
 def load_ned_data(filename):
+    """Loads processed decay data from Selbach group"""
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile]
     header = data[0]
     data = data[1:]
     return header, data
 
-def load_corum_data(species, dataset='core'):
-    return dbloader.LoadCorum(version =  'core')
-
-def load_coexpression_data(species):
-    return coexpressdb.Coexpression(species.lower())
-
 def get_homologs():
-    entrez_homologs, uniprot_homologs = {}, {}
-    with open('data/corum_homologs.txt') as infile:
+    """Returns dictionary mapping mouse homologs entrez <-> uniprot."""
+    homologs = {}
+    with open('data/homology/corum_mouse_homologs.txt') as infile:
         data = [line.strip().split('\t') for line in infile]
-    for line in data[1:]:
-        human_entrez = line[0]
-        mouse_entrez = line[1]
-        if len(line) == 3:
-            mouse_uniprot = line[2]
-            if human_entrez not in uniprot_homologs:
-                uniprot_homologs[human_entrez] = [mouse_uniprot]
-            else:
-                uniprot_homologs[human_entrez].append(mouse_uniprot)
-        else:
-            if human_entrez not in entrez_homologs:
-                entrez_homologs[human_entrez] = [mouse_entrez]
-            else:
-                entrez_homologs[human_entrez].append(mouse_entrez)
-    for key, val in entrez_homologs.items():
-        entrez_homologs[key] = tuple(set(val))
-    for key, val in uniprot_homologs.items():
-        uniprot_homologs[key] = tuple(set(val))
-    return entrez_homologs, uniprot_homologs
+    # data must be sorted in order of sequence identity (high first)
+    for line in data:
+        original = line[1].split('|')[1]
+        uniprot = line[0]
+        entrez = line[3]
+        # proteins map 1 to 1
+        if original not in homologs:
+            homologs[original] = [entrez]
+        # genes map 1 to multiple
+        if entrez not in homologs:
+            homologs[entrez] = [uniprot]
+        elif uniprot not in homologs[entrez]:
+            homologs[entrez].append(uniprot)
+    return homologs
 
 ###############################################################################
 
-class CoexpressCalculator(object):
+
+class CoexpressTable(object):
+    """Combines data from NED, CORUM and CoexpressDB."""
 
     def __init__(self, species, homologs = False):
+        """Mouse specific if using homologs, else human or mouse."""
         if homologs == True:
             neds = load_ned_data('data/NED_mouse_Abund.txt')[1]
-            self.entrezhoms, self.unihoms = get_homologs() # human to mouse
-            self.corum = load_corum_data('Human')
+            self.homologs = get_homologs()
+            self.corum = dbloader.LoadCorum(version='core')
             self.coex = coexpressdb.Coexpression('mouse')
             self.decay = {line[-2]: line[-3] for line in neds}
             self.species = 'mouse_homologs'
         else:
             neds = load_ned_data('data/NED_{0}_Abund.txt'.format(species))[1]
-            self.homolog_status = False
-            self.corum = load_corum_data(species)
-            self.coex = load_coexpression_data(species)
+            self.homologs = False
+            self.corum = dbloader.LoadCorum(species.title(), 'core')
+            self.coex = coexpressdb.Coexpression(species)
             self.decay = {line[-2]: line[-3] for line in neds}
             self.species = species
-
-    def process_data(self):
         self.outdata = []
-        for struc in self.corum.strucs:
-            self.complex = self.corum[struc]
-            entrez = [e for sublist in self.complex.entrez for e in sublist]
-            if self.homolog_status:
-                # Convert human entrez to mouse entrez
-                mouse_entrez = []
-                reverse = {}
-                for e in entrez:
-                    if e in self.entrezhoms:
-                        for eh in self.entrezhoms[e]:
-                            if eh in self.coex.avail:
-                                mouse_entrez.append(eh)
-                                reverse[eh] = e
-                                break
-                # Get average coexpression, then convert back to human ids
-                self.avg_coex = self._avg_coexpression(mouse_entrez)
-                self.avg_coex = {reverse[key]: value
-                                 for key, value in self.avg_coex.items()}
-                for subunit in self.complex.entrez:
-                    info = self._pick_best_subunits(subunit)
-                    if info == None:
-                        continue
-                    info = [struc] + [str(i) for i in info] + [self.species]
-                    self.outdata.append(info)
-            else:
-                self.avg_coex = self._avg_coexpression(entrez)
-                for subunit in self.complex.entrez:
-                    info = self._pick_best_subunits(subunit)
-                    if info == None:
-                        continue
-                    info = [struc] + [str(i) for i in info] + [self.species]
-                    self.outdata.append(info)
 
-    def write_to_file(self, filename):
-        with open(filename, 'w') as outfile:
-            header = ['comp', 'entrez', 'uniprot', 'avgcoex', 'def', 'species']
-            outfile.write('{0}\n'.format('\t'.join(header)))
-            for line in self.outdata:
-                outfile.write('{0}\n'.format('\t'.join(line)))
-
-    def _entrez_to_uniprot(self):
-        subunit_map = {}
-        entrez = [e for sublist in self.complex.entrez for e in sublist]
-        uniprot = [u for sublist in self.complex.uniprot for u in sublist]
-        if len(entrez) != len(uniprot):
-            print('number of entrez subunits != number of uniprot')
-        for i in range(len(entrez)):
-            subunit_map[entrez[i]] = uniprot[i]
-        return subunit_map
+    def _homologise_complex(self):
+        """Swaps corum uniprot id with mouse homolog entrez id."""
+        assert self.homologs
+        entrezids = []
+        for sub in self.complex.uniprot:
+            for u in sub:
+                if u in self.homologs:
+                    entrezids.append(self.homologs[u][0])
+                    break
+        return entrezids
 
     def _avg_coexpression(self, subunits):
+        """Uses CoexpressDB to calculate average coexpression of subunits"""
         avg_coex = {protein: [] for protein in subunits}
         for protein in avg_coex:
             for protein2 in avg_coex:
@@ -138,44 +93,79 @@ class CoexpressCalculator(object):
                 avg_coex[protein] = mean(avg_coex[protein])
         return avg_coex
 
-    def _pick_best_subunits(self, subunits):
-        """In cases where 2 or more subunits cannot be distinguished from one
-        another, CORUM encloses those subunits within brackets. This function
-        returns the subunit for which most data is available, prioritising data
-        on coexpression over data on decay classification.
-        """
-        possibilities = []
-        subunit_map = self._entrez_to_uniprot()
-        for entrezid in subunits:
-            if entrezid not in self.avg_coex:
-                continue
-            if self.homolog_status == True:
-                for mouse_upr in self.unihoms.get(entrezid, ('NA')):
-                    if mouse_upr in self.decay:
-                        decay = self.decay[mouse_upr]
-                        break
-                    else:
-                        decay = 'NA'
-                mouse_entrezid = self.entrezhoms[entrezid]
-                coexpression = self.avg_coex[entrezid]
-                decay = self.decay.get(mouse_upr, 'NA')
-                possibilities.append((mouse_entrezid, mouse_upr,
-                                      coexpression, decay))
+    def _convert_avgcoex_keys(self, avg_coex):
+        """Maps CORUM entrez ids to corresponding uniprot id."""
+        conversions = {}
+        entrez = [e for sublist in self.complex.entrez for e in sublist]
+        uniprot = [u for sublist in self.complex.uniprot for u in sublist]
+        if len(entrez) != len(uniprot):
+            log.debug('number of entrez subunits != number of uniprot')
+        for i in range(len(entrez)):
+            conversions[entrez[i]] = uniprot[i]
+        avg_coex = {conversions[key]: val for key, val in avg_coex.items()}
+        return avg_coex
+
+    def _convert_homolog_avgcoex_keys(self, avg_coex):
+        """As above, but using homology mappings to get uniprot from entrez."""
+        assert self.homologs
+        for entrez in list(avg_coex):
+            if set(self.homologs[entrez]).intersection(self.decay) == set():
+                avg_coex.pop(entrez)
             else:
-                upr = subunit_map[entrezid]
-                coexpression = self.avg_coex[entrezid]
-                decay = self.decay.get(upr, 'NA')
-                possibilities.append((entrezid, upr, coexpression, decay))
-        possibilities.sort(key=lambda x: (x.count('NA'), [x[2]].count('NA')))
-        if len(possibilities) == 0:  # possibly unused?
-            return
-        return possibilities[0]
+                for upr in self.homologs[entrez]:
+                    if upr in self.decay:
+                        avg_coex[upr] = avg_coex[entrez]
+                        avg_coex.pop(entrez)
+                        break
+        return avg_coex
+
+    def process_data(self):
+        """Gets avg. coexpression and decay of each subunit in CORUM complexes.
+
+        Carries out required processing needed to map subunits from corum
+        complexes to homologs (if required), decay-type classifications and
+        average coexpression within a complex. In doing so builds outdata, a
+        list of lists, where each inner list contains a the following
+        attributes for a single subunit:
+            corumid, unique_subs, uniprot_id, avg_coexpression, decay, species
+        """
+        for struc in self.corum.strucs:
+            self.complex = self.corum[struc]
+            usubs = len(self.complex.uniprot)
+            if self.homologs:
+                entrezids = self._homologise_complex()
+                avg_coex = self._avg_coexpression(entrezids)
+                avg_coex = self._convert_homolog_avgcoex_keys(avg_coex)
+            else:
+                entrezids = [sub[0] for sub in self.complex.entrez]
+                avg_coex = self._avg_coexpression(entrezids)
+                avg_coex = self._convert_avgcoex_keys(avg_coex)
+            for subunit in avg_coex:
+                info = [struc, str(usubs), subunit, str(avg_coex[subunit]),
+                        self.decay.get(subunit, 'NA'), self.species]
+                self.outdata.append(info)
+
+    def write_to_file(self, filename):
+        """Writes outdata to specified filename."""
+        if self.outdata == []:
+            log.warning('No data to write!')
+        with open(filename, 'w') as outfile:
+            header = ['comp', 'usubs', 'uniprot', 'avgcoex', 'def', 'species']
+            outfile.write('{0}\n'.format('\t'.join(header)))
+            for line in self.outdata:
+                outfile.write('{0}\n'.format('\t'.join(line)))
 
 
 ###############################################################################
 
-def analyse_corum_data(filename):
-    """Per complex binomial test for average subunit coexpression."""
+def coexpression_binomial(filename):
+    """Per complex binomial test for average subunit coexpression.
+
+    Returns:
+        trials - number of complexes tested
+        success - times median coexpression score of NEDs was higher than EDs.
+        pval - exact, two-sided probability of success given p=0.5 under H0.
+    """
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile][1:]
     strucs = {line[0]: [] for line in data}
@@ -202,21 +192,21 @@ def analyse_corum_data(filename):
         trials += 1
         if median(nvals) > median(evals):
             success += 1
-    print(success, trials, binom_test(success, trials))
+    pval = binom_test(success, trials)
+    print(success, trials, pval)
+    return success, trials, pval
 
 
 def main():
-    core = load_corum_data(None)
-    print('\n'.join(core.uniprot))
-    # calc = CoexpressCalculator('mouse')
-    # calc.process_data()
-    # calc.write_to_file('data/coexpressdb_corum_mouse.tsv')
-    # analyse_corum_data('test.tmp')
-    # calc = CoexpressCalculator('human')
-    # calc.process_data()
-    # calc.write_to_file('data/coexpressdb_corum_mouse.tsv')
-    # analyse_corum_data('data/coexpressdb_corum_mouse.tsv')
-    # analyse_corum_data('data/coexpressdb_corum_human.tsv')
+    # tab = CoexpressTable('mouse', homologs=True)
+    # tab.process_data()
+    # tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
+    analyse_corum_data('data/coexpressdb_corum_mouse_homologs.tsv')
+
+    # tab = CoexpressTable('mouse')
+    # tab.process_data()
+    # tab.write_to_file('data/coexpressdb_corum_mouse.tsv')
+    analyse_corum_data('data/coexpressdb_corum_human.tsv')
 
 if __name__ == '__main__':
     main()

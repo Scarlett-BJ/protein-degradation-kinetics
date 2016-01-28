@@ -8,7 +8,7 @@ def get_homologs():
         line[0] = line[0].split('*')[0]
         if '|' in line[0]:
             line[0] = line[0].split('|')[1]
-        if float(line[8]) >= 70.0:
+        if float(line[8]) >= 50.0:
             homologs.append(line[:2] + [line[8]])
     homologs.sort(key=lambda line: (line[1], -float(line[2])))
     return homologs

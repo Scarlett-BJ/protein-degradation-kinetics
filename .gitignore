@@ -31,4 +31,3 @@ cache/
 figures/
 *.pdf
 *.tmp
-halflife_tests.py

@@ -51,28 +51,36 @@ class CoexpressTable(object):
         """Mouse specific if using homologs, else human or mouse."""
         if homologs == True:
             neds = load_ned_data('data/NED_mouse_Abund.txt')[1]
-            self.homologs = get_homologs()
-            self.corum = dbloader.LoadCorum(version='core')
-            self.coex = coexpressdb.Coexpression('mouse')
-            self.decay = {line[-2]: line[-3] for line in neds}
-            self.species = 'mouse_homologs'
+            self._homologs = get_homologs()
+            try:
+                self._corum = dbloader.LoadCorum(version='core')
+                self._coex = coexpressdb.Coexpression('mouse')
+            except:
+                log.critical('CoexpressDB or CORUM not loaded')
+                raise
+            self._decay = {line[-2]: line[-3] for line in neds}
+            self._species = 'mouse_homologs'
         else:
             neds = load_ned_data('data/NED_{0}_Abund.txt'.format(species))[1]
-            self.homologs = False
-            self.corum = dbloader.LoadCorum(species.title(), 'core')
-            self.coex = coexpressdb.Coexpression(species)
-            self.decay = {line[-2]: line[-3] for line in neds}
-            self.species = species
-        self.outdata = []
+            self._homologs = False
+            try:
+                self._corum = dbloader.LoadCorum(species.title(), 'core')
+                self._coex = coexpressdb.Coexpression(species)
+            except:
+                log.critical('CoexpressDB or CORUM not loaded')
+                raise
+            self._decay = {line[-2]: line[-3] for line in neds}
+            self._species = species
+        self._outdata = []
 
     def _homologise_complex(self):
         """Swaps corum uniprot id with mouse homolog entrez id."""
-        assert self.homologs
+        assert self._homologs
         entrezids = []
-        for sub in self.complex.uniprot:
+        for sub in self._complex.uniprot:
             for u in sub:
-                if u in self.homologs:
-                    entrezids.append(self.homologs[u][0])
+                if u in self._homologs:
+                    entrezids.append(self._homologs[u][0])
                     break
         return entrezids
 
@@ -83,7 +91,7 @@ class CoexpressTable(object):
             for protein2 in avg_coex:
                 if protein == protein2:
                     continue
-                cor = self.coex.get_coexpression(protein, protein2)
+                cor = self._coex.get_coexpression(protein, protein2)
                 if cor == None:
                     continue
                 avg_coex[protein].append(cor)
@@ -96,8 +104,8 @@ class CoexpressTable(object):
     def _convert_avgcoex_keys(self, avg_coex):
         """Maps CORUM entrez ids to corresponding uniprot id."""
         conversions = {}
-        entrez = [e for sublist in self.complex.entrez for e in sublist]
-        uniprot = [u for sublist in self.complex.uniprot for u in sublist]
+        entrez = [e for sublist in self._complex.entrez for e in sublist]
+        uniprot = [u for sublist in self._complex.uniprot for u in sublist]
         if len(entrez) != len(uniprot):
             log.debug('number of entrez subunits != number of uniprot')
         for i in range(len(entrez)):
@@ -107,13 +115,13 @@ class CoexpressTable(object):
 
     def _convert_homolog_avgcoex_keys(self, avg_coex):
         """As above, but using homology mappings to get uniprot from entrez."""
-        assert self.homologs
+        assert self._homologs
         for entrez in list(avg_coex):
-            if set(self.homologs[entrez]).intersection(self.decay) == set():
+            if set(self._homologs[entrez]).intersection(self._decay) == set():
                 avg_coex.pop(entrez)
             else:
-                for upr in self.homologs[entrez]:
-                    if upr in self.decay:
+                for upr in self._homologs[entrez]:
+                    if upr in self._decay:
                         avg_coex[upr] = avg_coex[entrez]
                         avg_coex.pop(entrez)
                         break
@@ -129,30 +137,30 @@ class CoexpressTable(object):
         attributes for a single subunit:
             corumid, unique_subs, uniprot_id, avg_coexpression, decay, species
         """
-        for struc in self.corum.strucs:
-            self.complex = self.corum[struc]
-            usubs = len(self.complex.uniprot)
-            if self.homologs:
+        for struc in self._corum.strucs:
+            self._complex = self._corum[struc]
+            usubs = len(self._complex.uniprot)
+            if self._homologs:
                 entrezids = self._homologise_complex()
                 avg_coex = self._avg_coexpression(entrezids)
                 avg_coex = self._convert_homolog_avgcoex_keys(avg_coex)
             else:
-                entrezids = [sub[0] for sub in self.complex.entrez]
+                entrezids = [sub[0] for sub in self._complex.entrez]
                 avg_coex = self._avg_coexpression(entrezids)
                 avg_coex = self._convert_avgcoex_keys(avg_coex)
             for subunit in avg_coex:
                 info = [struc, str(usubs), subunit, str(avg_coex[subunit]),
-                        self.decay.get(subunit, 'NA'), self.species]
-                self.outdata.append(info)
+                        self._decay.get(subunit, 'NA'), self._species]
+                self._outdata.append(info)
 
     def write_to_file(self, filename):
         """Writes outdata to specified filename."""
-        if self.outdata == []:
+        if self._outdata == []:
             log.warning('No data to write!')
         with open(filename, 'w') as outfile:
             header = ['comp', 'usubs', 'uniprot', 'avgcoex', 'def', 'species']
             outfile.write('{0}\n'.format('\t'.join(header)))
-            for line in self.outdata:
+            for line in self._outdata:
                 outfile.write('{0}\n'.format('\t'.join(line)))
 
 

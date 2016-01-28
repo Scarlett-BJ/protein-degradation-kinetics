@@ -116,16 +116,13 @@ class CoexpressTable(object):
     def _convert_homolog_avgcoex_keys(self, avg_coex):
         """As above, but using homology mappings to get uniprot from entrez."""
         assert self._homologs
+        avg_coex_mapped = {}
         for entrez in list(avg_coex):
-            if set(self._homologs[entrez]).intersection(self._decay) == set():
-                avg_coex.pop(entrez)
-            else:
-                for upr in self._homologs[entrez]:
-                    if upr in self._decay:
-                        avg_coex[upr] = avg_coex[entrez]
-                        avg_coex.pop(entrez)
-                        break
-        return avg_coex
+            for upr in self._homologs[entrez]:
+                if upr in self._decay:
+                    avg_coex_mapped[upr] = avg_coex[entrez]
+                    break
+        return avg_coex_mapped
 
     def process_data(self):
         """Gets avg. coexpression and decay of each subunit in CORUM complexes.

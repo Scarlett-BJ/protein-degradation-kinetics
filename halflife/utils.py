@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-def load_ned_data(filename):
+def load_ned_data(species):
     """Loads processed decay data from Selbach group"""
+    if species == 'mouse':
+        filename = 'data/NED_mouse_Abund.txt'
+    elif species == 'human':
+        filename = 'data/NED_human_Abund.txt'
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile]
     header = data[0]
@@ -26,4 +30,15 @@ def get_homologs():
             homologs[entrez] = [uniprot]
         elif uniprot not in homologs[entrez]:
             homologs[entrez].append(uniprot)
+    return homologs
+
+def get_uniprot_homologs():
+    homologs = {}
+    with open('data/homology/corum_mouse_homologs.txt') as infile:
+        data = [line.strip().split('\t') for line in infile]
+    for line in data:
+        original = line[1].split('|')[1]
+        uniprot = line[0]
+        if original not in homologs:
+            homologs[original] = uniprot
     return homologs

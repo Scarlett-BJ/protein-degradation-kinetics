@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 
 import pytest
-from halflife import coexpression as cx
 import random
 
-def test_load_ned_data():
-    filenames = ['data/NED_mouse_Abund.txt',
-                 'data/NED_human_Abund.txt']
-    for filename in filenames:
-        header, data = cx.load_ned_data(filename)
-        assert len(data) != 0 and len(header) == len(data[0])
+import halflife.utils as ut
+import halflife.coexpression as cx
+import halflife.abundance as ab
 
-def test_homologs():
-    homologs = cx.get_homologs()
-    assert len(homologs) != 0
+class TestUtils(object):
+    pass
 
-class TestCoexpressTable(object):
+
+class TestCoexpression(object):
 
     @pytest.fixture
     def homolog(self):
@@ -76,3 +72,6 @@ class TestCoexpressTable(object):
     def test_write_to_file(self):
         # Needs doing! Hard to figure out how temp directories work!
         pass
+
+class TestAbundance(object):
+    pass

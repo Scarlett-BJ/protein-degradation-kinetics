@@ -1,48 +1,17 @@
 #!/usr/bin/env python3
 
 from ixntools import dbloader
-from utils import *
 from expression import coexpressdb
+import halflife.utils as utils
+
 from numpy import mean, median
 from scipy.stats import binom_test
-from collections import namedtuple
+
 import logging
 import sys
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('coexpression')
-
-###############################################################################
-
-# def load_ned_data(filename):
-#     """Loads processed decay data from Selbach group"""
-#     with open(filename) as infile:
-#         data = [line.strip().split('\t') for line in infile]
-#     header = data[0]
-#     data = data[1:]
-#     return header, data
-
-# def get_homologs():
-#     """Returns dictionary mapping mouse homologs entrez <-> uniprot."""
-#     homologs = {}
-#     with open('data/homology/corum_mouse_homologs.txt') as infile:
-#         data = [line.strip().split('\t') for line in infile]
-#     # data must be sorted in order of sequence identity (high first)
-#     for line in data:
-#         original = line[1].split('|')[1]
-#         uniprot = line[0]
-#         entrez = line[3]
-#         # proteins map 1 to 1
-#         if original not in homologs:
-#             homologs[original] = [entrez]
-#         # genes map 1 to multiple
-#         if entrez not in homologs:
-#             homologs[entrez] = [uniprot]
-#         elif uniprot not in homologs[entrez]:
-#             homologs[entrez].append(uniprot)
-#     return homologs
-
-###############################################################################
 
 
 class CoexpressTable(object):
@@ -50,28 +19,18 @@ class CoexpressTable(object):
 
     def __init__(self, species, homologs = False):
         """Mouse specific if using homologs, else human or mouse."""
+        neds = utils.load_ned_data(species)[1]
         if homologs == True:
-            neds = load_ned_data('data/NED_mouse_Abund.txt')[1]
-            self._homologs = get_homologs()
-            try:
-                self._corum = dbloader.LoadCorum(version='core')
-                self._coex = coexpressdb.Coexpression('mouse')
-            except:
-                log.critical('CoexpressDB or CORUM not loaded')
-                raise
-            self._decay = {line[-2]: line[-3] for line in neds}
-            self._species = 'mouse_homologs'
+            if species != 'mouse':
+                raise ValueError('homologs only implemented for mouse')
+            self._homologs = utils.get_homologs()
+            self._corum = dbloader.LoadCorum(version='core')
         else:
-            neds = load_ned_data('data/NED_{0}_Abund.txt'.format(species))[1]
             self._homologs = False
-            try:
-                self._corum = dbloader.LoadCorum(species.title(), 'core')
-                self._coex = coexpressdb.Coexpression(species)
-            except:
-                log.critical('CoexpressDB or CORUM not loaded')
-                raise
-            self._decay = {line[-2]: line[-3] for line in neds}
-            self._species = species
+            self._corum = dbloader.LoadCorum(species, 'core')
+        self._coex = coexpressdb.Coexpression(species)
+        self._decay = {line[-2]: line[-3] for line in neds}
+        self._species = species
         self._outdata = []
 
     def _homologise_complex(self):
@@ -203,16 +162,16 @@ def coexpression_binomial(filename):
     return success, trials, pval
 
 def main():
-    # Mouse Homologs
-    tab = CoexpressTable('mouse', homologs=True)
-    tab.process_data()
-    tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
-    coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
+    # # Mouse Homologs
+    # tab = CoexpressTable('mouse', homologs=True)
+    # tab.process_data()
+    # tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
+    # coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
     # # Human complexes
     # tab = CoexpressTable('human')
     # tab.process_data()
     # tab.write_to_file('data/coexpressdb_corum_human.tsv')
-    # coexpression_binomial('data/coexpressdb_corum_human.tsv')
+    coexpression_binomial('data/coexpressdb_corum_human.tsv')
     # # Mouse complexes
     # tab = CoexpressTable('mouse')
     # tab.process_data()

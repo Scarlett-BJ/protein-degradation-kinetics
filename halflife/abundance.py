@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import logging
+from utils import *
 import ixntools as ix
 from expression import paxdb, proteomicsdb, proteomicsdb_requests as req
 import numpy as np
@@ -7,13 +9,13 @@ from scipy.stats import binom_test
 from collections import namedtuple
 
 
-def load_NED_data(filename, sep='\t'):
-    """Returns header and data from NED files."""
-    with open(filename) as infile:
-        data = [line.strip().split(sep) for line in infile]
-    header = data[0]
-    data = data[1:]
-    return header, data
+# def load_ned_data(filename, sep='\t'):
+#     """Returns header and data from NED files."""
+#     with open(filename) as infile:
+#         data = [line.strip().split(sep) for line in infile]
+#     header = data[0]
+#     data = data[1:]
+#     return header, data
 
 def protein_map(species):
     """Returns dictionary of uniprot accession codes to ensp IDs."""
@@ -33,11 +35,11 @@ def protein_map(species):
 
 def load_paxdb_data(species):
     if species == 'mouse':
-        data = load_NED_data('data/NED_mouse_Abund.txt')[1]
+        data = load_ned_data('data/NED_mouse_Abund.txt')[1]
         meta = paxdb.get_metadata('10090')
         pmap = protein_map('mouse')
     elif species == 'human':
-        data = load_NED_data('data/NED_human_Abund.txt')[1]
+        data = load_ned_data('data/NED_human_Abund.txt')[1]
         meta = paxdb.get_metadata('9606')
         pmap = protein_map('human')
     skip = ['CELL_LINE']
@@ -71,7 +73,7 @@ def print_expression_data(species):
             outfile.write(newline + '\n')
 
 def load_proteomicsdb_data():
-    data = load_NED_data('data/NED_human.txt')[1]
+    data = load_ned_data('data/NED_human.txt')[1]
     isoab = proteomicsdb.Abundances('human_protdb_isoforms_expression.txt')
     abunds = proteomicsdb.Abundances('trembl_tissues.txt')
     tissues = abunds.tissues
@@ -133,7 +135,7 @@ def tcount_binomial_test():
     print(success, trials, binom_test(success, trials))
 
 def abundance_binomial_test(species, homologs=False):
-    header, data = load_NED_data('data/NED_{0}_Abund.txt'.format(species))
+    header, data = load_ned_data('data/NED_{0}_Abund.txt'.format(species))
     Prot = namedtuple('Prot', ['abundance', 'decay'])
     if homologs == True:
         core = ix.dbloader.LoadCorum('Human', 'core')
@@ -170,7 +172,7 @@ def abundance_binomial_test(species, homologs=False):
     print(success, trials, binom_test(success, trials))
 
 def tissue_count2(species, homologs=False):
-    header, data = load_NED_data('data/NED_{0}_Abund.txt'.format(species))
+    header, data = load_ned_data('data/NED_{0}_Abund.txt'.format(species))
 
     fname = 'data/abundance/human_proteomicsdb_tissue_expression.txt'
     with open(fname) as infile:

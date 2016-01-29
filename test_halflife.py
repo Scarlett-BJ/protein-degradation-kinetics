@@ -6,6 +6,8 @@ import random
 import halflife.utils as ut
 import halflife.coexpression as cx
 import halflife.abundance as ab
+import halflife.tissue_expression as te
+
 
 class TestUtils(object):
     pass
@@ -73,5 +75,14 @@ class TestCoexpression(object):
         # Needs doing! Hard to figure out how temp directories work!
         pass
 
+
 class TestAbundance(object):
+    pass
+
+
+class TestStructuralDistribution(object):
+    pass
+
+
+class TestTissueExpression(object):
     pass

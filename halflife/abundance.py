@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 from ixntools import dbloader
-import halflife.utils as utils
-
+from halflife import utils
 from numpy import mean
 from scipy.stats import binom_test
-
 import logging
 import sys
 

@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 
-import logging
-from utils import *
 import ixntools as ix
 from expression import paxdb, proteomicsdb, proteomicsdb_requests as req
+from halflife import utils
+
 import numpy as np
 from scipy.stats import binom_test
 from collections import namedtuple
 
+import logging
+import sys
 
-# def load_ned_data(filename, sep='\t'):
-#     """Returns header and data from NED files."""
-#     with open(filename) as infile:
-#         data = [line.strip().split(sep) for line in infile]
-#     header = data[0]
-#     data = data[1:]
-#     return header, data
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+log = logging.getLogger('tissue')
 
 def protein_map(species):
     """Returns dictionary of uniprot accession codes to ensp IDs."""

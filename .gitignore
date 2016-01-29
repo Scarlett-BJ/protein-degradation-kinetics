@@ -26,8 +26,6 @@ var/
 
 # Package specific
 .DS_Store
-__pycache__/
 cache/
-figures/
 *.pdf
 *.tmp

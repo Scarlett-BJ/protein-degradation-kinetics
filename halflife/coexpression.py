@@ -2,11 +2,9 @@
 
 from ixntools import dbloader
 from expression import coexpressdb
-import halflife.utils as utils
-
+from halflife import utils
 from numpy import mean, median
 from scipy.stats import binom_test
-
 import logging
 import sys
 

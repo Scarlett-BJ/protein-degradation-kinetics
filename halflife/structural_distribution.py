@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
-from filter_strucs import load_pfam
 
 def load_genes(filename):
     """Return dictionary contating genes mapped to pdb and decay."""

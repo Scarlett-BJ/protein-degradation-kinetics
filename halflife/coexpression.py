@@ -68,19 +68,19 @@ class CoexpressTable(object):
             log.debug('number of entrez subunits != number of uniprot')
         for i in range(len(entrez)):
             conversions[entrez[i]] = uniprot[i]
-        avg_coex = {conversions[key]: val for key, val in avg_coex.items()}
-        return avg_coex
+        avg_coex2 = {conversions[key]: val for key, val in avg_coex.items()}
+        return avg_coex2
 
     def _convert_homolog_avgcoex_keys(self, avg_coex):
         """As above, but using homology mappings to get uniprot from entrez."""
         assert self._homologs
-        avg_coex_mapped = {}
+        avg_coex2 = {}
         for entrez in list(avg_coex):
             for upr in self._homologs[entrez]:
                 if upr in self._decay:
-                    avg_coex_mapped[upr] = avg_coex[entrez]
+                    avg_coex2[upr] = avg_coex[entrez]
                     break
-        return avg_coex_mapped
+        return avg_coex2
 
     def process_data(self):
         """Gets avg. coexpression and decay of each subunit in CORUM complexes.
@@ -107,6 +107,7 @@ class CoexpressTable(object):
                 info = [struc, str(usubs), subunit, str(avg_coex[subunit]),
                         self._decay.get(subunit, 'NA'), self._species]
                 self._outdata.append(info)
+
 
     def write_to_file(self, filename):
         """Writes outdata to specified filename."""
@@ -160,21 +161,21 @@ def coexpression_binomial(filename):
     return success, trials, pval
 
 def main():
-    # # Mouse Homologs
-    # tab = CoexpressTable('mouse', homologs=True)
-    # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
-    # coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
-    # # Human complexes
-    # tab = CoexpressTable('human')
-    # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_human.tsv')
+    # Mouse Homologs
+    tab = CoexpressTable('mouse', homologs=True)
+    tab.process_data()
+    tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
+    coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
+    # Human complexes
+    tab = CoexpressTable('human')
+    tab.process_data()
+    tab.write_to_file('data/coexpressdb_corum_human.tsv')
     coexpression_binomial('data/coexpressdb_corum_human.tsv')
-    # # Mouse complexes
-    # tab = CoexpressTable('mouse')
-    # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_mouse.tsv')
-    # coexpression_binomial('data/coexpressdb_corum_mouse.tsv')
+    # Mouse complexes
+    tab = CoexpressTable('mouse')
+    tab.process_data()
+    tab.write_to_file('data/coexpressdb_corum_mouse.tsv')
+    coexpression_binomial('data/coexpressdb_corum_mouse.tsv')
 
 if __name__ == '__main__':
     main()

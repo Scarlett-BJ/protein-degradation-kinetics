@@ -2,10 +2,11 @@
 
 from collections import namedtuple
 
-def load_genes(filename):
+def load_genes(species):
     """Return dictionary contating genes mapped to pdb and decay."""
     genes = {}
     ribosome_blacklist = []
+    filename = 'data/structural/all_{0}.out'.format(species)
     with open(filename) as infile:
         for line in infile:
             line = line.split()
@@ -45,20 +46,20 @@ def write_gene_info(genes, strucs, species):
     fname = 'data/structural/NED_quaternary_{0}.txt'.format(species)
     with open(fname, 'w') as outfile:
         header = ['gene', 'struc', 'chn', 'decay.class', 'qtype',
-                  'unq', 'tot', '\n']
+                  'unq', 'tot', 'species', '\n']
         outfile.write('\t'.join(header))
         for gene in genes:
             if genes[gene][0] not in strucs:
                 continue
             struc = strucs[genes[gene][0]]
             line = [gene, '\t'.join(genes[gene]), struc.qtype,
-                    struc.unique, struc.total]
+                    struc.unique, struc.total, species]
             outfile.write('\t'.join(line)+'\n')
 
 def main(species):
-    genes, rblist = load_genes('data/structural/all_{0}.out'.format(species))
+    genes, rblist = load_genes(species)
     strucs = load_structure_data()
-    # If you don't want to filter out bigger structures remove this loop
+    # If you don't want to filter out ribosomes remove this loop
     for r in rblist:
         strucs.pop(r)
     for s in strucs:

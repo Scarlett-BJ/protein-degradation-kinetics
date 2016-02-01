@@ -65,21 +65,21 @@ paxdb_mouse_ranked <- arrange(count(df_mouse_tissues, tissue), desc(n))$tissue
 
 # Tissue count density plot
 tissue_count_density <- function(df){
-  print(length(df$prot))
+  # Count each protein once, even if present in many tissues
   df <- df[match(unique(df$prot), df$prot),]
-  print(length(df$prot))
-  df$def <- factor(df$def, levels = c("NED", "UN", "ED"))
+  df$def <- factor(df$def, levels = c("UN", "ED", "NED"))
+  levels(df$def) <- c("Undefined", "ED", "NED")
   plt <- ggplot(df, aes(x = tcount, fill = def)) +
     geom_density(alpha = 0.7, lwd = 0.4) +
-    scale_fill_manual(values = c("darkred", "cadetblue4", "darkgoldenrod1")) +
-    labs(x = "Number of tissues in which protein is expressed",
+    scale_fill_manual(values = c("grey", "#f22a1b", "#2f868b")) +
+    labs(x = "Number of tissues in which protein is detected",
          y = "Density",
          fill = "Decay") +
     theme(text = element_text(size = 10),
           legend.key.size = unit(0.5, "cm"))
   return(plt)
 }
-tissue_count_density(filter(df_protdb_human, tissue == "ovary"))
+# tissue_count_density(filter(df_protdb_human, tissue == "ovary"))
 tissue_count_density(df_protdb_human)
 ################################################################################
 
@@ -143,44 +143,55 @@ protdb_linear(filter(df_protdb_human, tissue %in% protdb_ranked[1:6])) +
 
 # ProteomicsDB binned boxplots - Not so nice, can't see distribution properly
 
+# bin_dgof_ks <- function(df){
+#   df <- na.omit(df)
+#   df <- mutate(df, abin = cut(df$tcount, c(1, 3, 4, 5, 6, 7, 9)))
+#   pvals <- c()
+#   for (bin in levels(df$tbin)){
+#     ned <- filter(df, tbin == bin, def == "NED")$abund
+#     ed <- filter(df, tbin == bin, def == "ED")$abund
+#     p <- wilcox.test(ned, ed, simulate.p.value = TRUE, exact = FALSE)$p.value
+#     pvals <- append(pvals, as.character(signif(p, 2)))
+#   }
+#   return(pvals)
+# }
+
 bin_dgof_ks <- function(df){
   df <- na.omit(df)
-  df <- mutate(df, abin = cut(df$tcount, c(1, 3, 4, 5, 6, 7, 9)))
+  df <- mutate(df, tbin = cut(df$tcount, c(1, 20, 30, 40, 50, 70)))
   pvals <- c()
   for (bin in levels(df$tbin)){
     ned <- filter(df, tbin == bin, def == "NED")$abund
     ed <- filter(df, tbin == bin, def == "ED")$abund
-    p <- wilcox.test(ned, ed, simulate.p.value = TRUE, exact = FALSE)$p.value
-    pvals <- append(pvals, as.character(signif(p, 3)))
+    p <- wilcox.test(ned, ed)$p.value
+    pvals <- append(pvals, as.character(signif(p, 2)))
   }
   return(pvals)
 }
 
+
 protdb_binned_boxplots <- function(df){
-  # df[df$def == "UN",]$def <- "NED"
   df <- na.omit(df)
-  df <- mutate(df, tbin = cut(df$tcount, c(1, 10, 20, 30, 40, 50, 70)),
+  df$def <- factor(df$def, levels = c("UN", "ED", "NED"))
+  levels(df$def) <- c("Undefined", "ED", "NED")
+  df <- mutate(df, tbin = cut(df$tcount, c(1, 20, 30, 40, 50, 70)),
                abin = cut(df$abund, c(1, 3, 4, 5, 6, 7, 9)))
   pvals <- bin_dgof_ks(df)
-#   text_data <- data.frame(x = c(c(1:6) - 0.15), y = c(29, 50, 57, 63, 64, 64),
-#                           label = pvals)
-  text_data <- data.frame(x = c(c(1:6) - 0.15), y = c(6.3, 6.9, 7.5, 8, 8, 8),
-                          label = pvals)
+  text_data <- data.frame(x = c(c(1:5)), y = 8, label = pvals)
   df <- na.omit(df)
   plt <- ggplot(df, aes(y = abund, x = tbin))
   plt_bbox <- plt + 
     geom_boxplot(aes(fill = def), position = position_dodge(), 
-                 outlier.size = 0.1, notch = FALSE) +
+                 outlier.size = 0.1, notch = FALSE, lwd=0.3) +
 #     scale_x_discrete(labels = c("1 - 3", "3 - 4", "4 - 5", 
 #                                 "5 - 6", "6 - 7", "7 - 9")) +
-    scale_x_discrete(labels = c("1-10", "10-20", "20-30",
-                       "30-40", "40-50", "50-70")) +
-    scale_fill_manual(values =  c("darkgoldenrod1", "darkred", "cadetblue4")) +
+    scale_x_discrete(labels = c("1-20", "21-30", "31-40", "41-50", "51-70")) +
+    scale_fill_manual(values =  c("grey", "#f22a1b", "#2f868b")) +
     labs(y = expression(paste("Protein abundance ", 
                               log[10], "(iBAQ intensity)")),
-         x = "Binned tissue counts",
+         x = "Number of tissues in which protein is detected",
          fill = "Decay") +
-    geom_text(data = text_data, aes(x, y, label = label), size = 3) +
+    geom_text(data = text_data, aes(x, y, label = label), size = 2) +
     theme(text = element_text(size = 10),
           legend.key.size = unit(0.5, "cm"))
   return(plt_bbox)

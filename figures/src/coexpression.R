@@ -46,8 +46,8 @@ density_plotter <- function(df){
   return(plt)
 }
 paneld <- density_plotter(filter(df_struc, usubs >= 3)) +
-  geom_text(data = data.frame(x = 0.5, y = 2.25, lab = "P = 7.1e-08"), 
-            aes(x, y, label = lab), size = 2.5)
+  geom_text(data = data.frame(x = 0.5, y = 2.25, lab = "P = 1.2e-08"), 
+            aes(x, y, label = lab), size = 2.5, fontface = "italic")
 density_plotter(filter(df_corum_mouse, usubs >= 3)) + 
   geom_text(data = data.frame(x = 0.45, y = 2.5, lab = "P < 2.2e-16"), 
             aes(x, y, label = lab), size = 2.5)

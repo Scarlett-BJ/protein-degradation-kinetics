@@ -71,11 +71,43 @@ def write_gene_info(species, filter_ribosomes=True):
                     struc.unique, struc.total, species]
             outfile.write('\t'.join(line)+'\n')
 
+
+def filter_top_seqid_isize():
+    with open('data/old_data/isize.txt') as infile:
+        infile.readline()
+        print(len([i.split()[2] for in infile]))
+    with open('data/old_data/isize.txt') as infile:
+        new_data = [infile.readline()]
+        sdict = []
+        for line in  infile:
+            sline = line.strip().split('\t')
+            if sline[2] not in sdict:
+                sdict.append(sline[2])
+                new_data.append(line)
+    # for line in new_data:
+    #     print(line.strip())
+
+    print(len(new_data))
+
+def filter_top_seqid_assembly():
+    with open('data/structural/assembly.txt') as infile:
+        new_data = [infile.readline()]
+        sdict = []
+        for line in  infile:
+            sline = line.strip().split()
+            if sline[2] not in sdict:
+                sdict.append(sline[2])
+                new_data.append(line)
+    for line in new_data:
+        print(line.strip())
+
+
 def main():
-    write_gene_info('mouse')
-    write_gene_info('human')
-    write_gene_info('mouse', False)
-    write_gene_info('human', False)
+    # write_gene_info('mouse')
+    # write_gene_info('human')
+    # write_gene_info('mouse', False)
+    # write_gene_info('human', False)
+    filter_top_seqid_isize()
 
 if __name__ == '__main__':
     main()

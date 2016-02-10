@@ -3,6 +3,7 @@
 import ixntools as ix
 from expression import paxdb, proteomicsdb, proteomicsdb_requests as req
 from halflife import utils
+from halflife import abundance as ab
 
 import numpy as np
 from scipy.stats import binom_test
@@ -88,8 +89,19 @@ def tcount_binomial_test():
                 success += 1
     print(success, trials, binom_test(success, trials))
 
+def tcount_binomial_test2():
+    fname = 'data/abundance/human_proteomicsdb_tissue_expression.txt'
+    with open(fname) as infile:
+        data = [line.strip().split('\t') for line in infile]
+    tdict = {line[0]: [int(line[-2]),  line[-1]] for line in data[1:]}
+    abdict = ab.abundance_dict('human')
+    for prot in tdata:
+        print(prot, tdata[prot][1], tdata[prot][0], abdict[prot][0])
+
+
 def main():
     tcount_binomial_test()
+
 
 
 if __name__ == '__main__':

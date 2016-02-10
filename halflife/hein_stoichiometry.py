@@ -2,6 +2,7 @@
 
 import ixntools as ix
 from numpy import mean
+from halflife import utils
 
 def load_hein():
     """Loads dataset 3? from 3d interactome paper. Each line represents a
@@ -18,13 +19,6 @@ def load_hein():
         line[3] = set(line[3].split(';'))  # prey
     return header, data
 
-def load_ned():
-    with open('data/NED_human.txt') as infile:
-        data = [line.split() for line in infile]
-    header = data[0]
-    data = data[1:]
-    return header, data
-
 def load_corum_proteins(species):
     core = ix.dbloader.LoadCorum(species.title(), 'core')
     uniprots = []
@@ -37,18 +31,19 @@ def load_corum_proteins(species):
 def load_structural():
     pass
 
-def NED_core_interactor_test(protein_subset):
-    header, data = load_ned()
-    data = [line for line in data if line[0] in protein_subset]
-    neds = set(line[0] for line in data if line[-1] == 'NED')
-    eds = set(line[0] for line in data if line[-1] == 'ED')
+def NED_core_interactor_test(protein_subset=None):
+    header, data = utils.load_ned_data('human')
+    # data = [line for line in data if line[0] in protein_subset]
+    neds = set(line[-2] for line in data if line[-3] == 'NED')
+    eds = set(line[-2] for line in data if line[-3] == 'ED')
     header, data = load_hein()
     baits = set(protein for line in data for protein in line[2])
     # Select set of proteins common to both NED data and stoich data.
-    baits = baits.intersection(neds.union(eds))
-    neds = neds.intersection(baits)
-    eds = eds.intersection(baits)
+    # baits = baits.intersection(neds.union(eds))
+    # neds = neds.intersection(baits)
+    # eds = eds.intersection(baits)
     # Test likelihood of finding NED proteins in Core
+    print(len(neds), len(eds))
     ned_core, ed_core, ned_noncore, ed_noncore = 0, 0, 0, 0
     for line in data:
         # Ignore self-interactors
@@ -96,7 +91,7 @@ def per_complex():
     print(len(eds.intersection(core_prots)))
 
 def main():
-    per_complex()
+    NED_core_interactor_test()
 
 if __name__ == '__main__':
     main()

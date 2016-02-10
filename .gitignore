@@ -26,6 +26,9 @@ var/
 
 # Package specific
 .DS_Store
+.cache/
 cache/
 *.pdf
 *.tmp
+*.svg
+*.tar

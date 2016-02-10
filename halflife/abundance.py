@@ -2,13 +2,14 @@
 
 from ixntools import dbloader
 from halflife import utils
-from numpy import mean
+from numpy import mean, log
 from scipy.stats import binom_test
+from scipy.stats.mstats import gmean
 import logging
 import sys
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-log = logging.getLogger('abundance')
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# log = logging.getLogger('abundance')
 
 def abundance_dict(species):
     """Returns dict - uniprot => (decay, abundance)"""
@@ -58,7 +59,7 @@ def abundance_binomial(species, homologs=False):
         if len(nvals) == 0 or len(evals) == 0:
             continue
         trials += 1
-        if mean(nvals) > mean(evals):
+        if gmean(nvals) > gmean(evals):
             success += 1
     pval = binom_test(success, trials)
     print(success, trials, pval)

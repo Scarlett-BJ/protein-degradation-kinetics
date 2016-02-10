@@ -2,6 +2,7 @@ library("ggplot2")
 library("dplyr")
 library("reshape2")
 library("dgof")
+library(gridExtra)
 ################################################################################
 
 ## Build data frames
@@ -106,7 +107,7 @@ paxdb_linear <- function(df){
 protdb_linear <- function(df){
   #   df[df$def == "UN",]$def <- "NED"
   #   df <- droplevels(df)
-  df <- filter(df, def != "UN")
+  # df <- filter(df, def != "UN")
   stdev <- sqrt(var(df$abund))
   amean <- mean(df$abund)
   minval <- amean - 2 * stdev
@@ -114,7 +115,7 @@ protdb_linear <- function(df){
   df <- filter(df, abund >= minval & abund <= maxval)
   plt <- ggplot(df, aes(x = abund, y = tcount, colour = def, fill = def)) +
     geom_jitter(alpha = 0.35, size = 0.5) +
-    geom_smooth(lwd = 1, method = "lm") +
+    geom_smooth(lwd = 1) +
     scale_colour_manual(values = c("darkorange", "firebrick", "cadetblue4"),
                         labels = c("ED", "NED",  "UN")) +
     scale_fill_manual(values = c("darkgoldenrod1", "firebrick", "cadetblue4"),
@@ -128,7 +129,7 @@ protdb_linear <- function(df){
           legend.key.size = unit(0.5, "cm"))
   return(plt)
 }
-
+protdb_linear(df)
 # Display Plots
 # paxdb_linear(filter(df_mouse_tissues, tissue %in% paxdb_mouse_ranked[1:8])) +
 #   facet_wrap(~ tissue)
@@ -143,20 +144,8 @@ protdb_linear(filter(df_protdb_human, tissue %in% protdb_ranked[1:6])) +
 
 # ProteomicsDB binned boxplots - Not so nice, can't see distribution properly
 
-# bin_dgof_ks <- function(df){
-#   df <- na.omit(df)
-#   df <- mutate(df, abin = cut(df$tcount, c(1, 3, 4, 5, 6, 7, 9)))
-#   pvals <- c()
-#   for (bin in levels(df$tbin)){
-#     ned <- filter(df, tbin == bin, def == "NED")$abund
-#     ed <- filter(df, tbin == bin, def == "ED")$abund
-#     p <- wilcox.test(ned, ed, simulate.p.value = TRUE, exact = FALSE)$p.value
-#     pvals <- append(pvals, as.character(signif(p, 2)))
-#   }
-#   return(pvals)
-# }
 
-bin_dgof_ks <- function(df){
+bin_wilcoxon <- function(df){
   df <- na.omit(df)
   df <- mutate(df, tbin = cut(df$tcount, c(1, 20, 30, 40, 50, 70)))
   pvals <- c()
@@ -169,23 +158,20 @@ bin_dgof_ks <- function(df){
   return(pvals)
 }
 
-
 protdb_binned_boxplots <- function(df){
   df <- na.omit(df)
   df$def <- factor(df$def, levels = c("UN", "ED", "NED"))
   levels(df$def) <- c("Undefined", "ED", "NED")
-  df <- mutate(df, tbin = cut(df$tcount, c(1, 20, 30, 40, 50, 70)),
-               abin = cut(df$abund, c(1, 3, 4, 5, 6, 7, 9)))
-  pvals <- bin_dgof_ks(df)
-  text_data <- data.frame(x = c(c(1:5)), y = 8, label = pvals)
+  df <- mutate(df, tbin = cut(df$tcount, c(1, 20, 30, 40, 50, 70)))
+               # abin = cut(df$abund, c(1, 3, 4, 5, 6, 7, 9)))
+  pvals <- bin_wilcoxon(df)
+  text_data <- data.frame(x = c(c(1:5)), y = 3, label = pvals)
   df <- na.omit(df)
   plt <- ggplot(df, aes(y = abund, x = tbin))
   plt_bbox <- plt + 
     geom_boxplot(aes(fill = def), position = position_dodge(), 
                  outlier.size = 0.1, notch = FALSE, lwd=0.3) +
-#     scale_x_discrete(labels = c("1 - 3", "3 - 4", "4 - 5", 
-#                                 "5 - 6", "6 - 7", "7 - 9")) +
-    scale_x_discrete(labels = c("1-20", "21-30", "31-40", "41-50", "51-70")) +
+    scale_x_discrete(labels = c("1-20", "21-30", "31-40", "41-50", "51+")) +
     scale_fill_manual(values =  c("grey", "#f22a1b", "#2f868b")) +
     labs(y = expression(paste("Protein abundance ", 
                               log[10], "(iBAQ intensity)")),
@@ -193,9 +179,12 @@ protdb_binned_boxplots <- function(df){
          fill = "Decay") +
     geom_text(data = text_data, aes(x, y, label = label), size = 2) +
     theme(text = element_text(size = 10),
-          legend.key.size = unit(0.5, "cm"))
+          legend.key.size = unit(0.5, "cm"),
+          legend.position = "none")
   return(plt_bbox)
 }
+
+figa <- protdb_binned_boxplots(df)
 
 protdb_binned_boxplots(filter(df_protdb_human, tissue == "ovary"))
 # bin_dgof_ks(filter(df_protdb_human, tissue == "ovary"))
@@ -226,3 +215,51 @@ plot_median_boxplot <- function(df){
 protdb_binned_boxplots(df_protdb_human)
 bin_wilcoxons(df_protdb_human)
 # plot_median_boxplot(filter(df_protdb_human, tissue == "ovary"))
+
+
+
+bin_dgof_ks <- function(df){
+  df <- na.omit(df)
+  df <- mutate(df, abin = cut(df$abund, c(-10, -6, -4, -2, 0, 4)))
+  pvals <- c()
+  for (bin in levels(df$abin)){
+    ned <- filter(df, abin == bin, def == "NED")$tcount
+    ed <- filter(df, abin == bin, def == "ED")$tcount
+    p <- wilcox.test(ned, ed, simulate.p.value = TRUE, exact = FALSE)$p.value
+    pvals <- append(pvals, as.character(signif(p, 2)))
+  }
+  return(pvals)
+}
+bin_dgof_ks(df)
+
+
+protdb_binned_boxplots <- function(df){
+  df <- na.omit(df)
+  df$def <- factor(df$def, levels = c("UN", "ED", "NED"))
+  levels(df$def) <- c("Undefined", "ED", "NED")
+  df <- mutate(df, abin = cut(df$abund, c(-10, -6, -4, -2, 0, 4)))
+  pvals <- bin_dgof_ks(df)
+  text_data <- data.frame(x = c(c(1:5)), y = 65, label = pvals)
+  df <- na.omit(df)
+  plt <- ggplot(df, aes(y = tcount, x = abin))
+  plt_bbox <- plt + 
+    geom_boxplot(aes(fill = def), position = position_dodge(), 
+                 outlier.size = 0.1, notch = FALSE, lwd=0.3) +
+        scale_x_discrete(labels = c("-10 - -6", "-6 - -4", "-4 - -2", 
+                                    "-2 - 0", "0 - 4")) +
+    scale_fill_manual(values =  c("grey", "#f22a1b", "#2f868b")) +
+    labs(x = expression(paste("log(protein abundance)")),
+         y = "Number of tissues in which protein is detected",
+         fill = "Decay") +
+    geom_text(data = text_data, aes(x, y, label = label), size = 2) +
+    theme(text = element_text(size = 10),
+          legend.key.size = unit(0.5, "cm"))
+  return(plt_bbox)
+}
+figb <- protdb_binned_boxplots(df)
+
+
+
+
+
+

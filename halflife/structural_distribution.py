@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+import logging
+import sys
+
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+log = logging.getLogger('structural')
 
 def load_genes(species):
     """Return dictionary contating genes mapped to pdb and decay."""
@@ -8,6 +13,7 @@ def load_genes(species):
     ribosome_blacklist = []
     filename = 'data/structural/all_{0}.out'.format(species)
     with open(filename) as infile:
+        infile.readline()
         for line in infile:
             line = line.split()
             for i in ['Rps', 'Rpl', 'Mrpl', 'Mrps', # Mouse
@@ -41,32 +47,35 @@ def load_structure_data():
         strucs[struc] = Stoich(i[0], i[1], i[2], qtype)
     return strucs
 
-def write_gene_info(genes, strucs, species):
+def write_gene_info(species, filter_ribosomes=True):
     """Write out combined decay and structural info."""
-    fname = 'data/structural/NED_quaternary_{0}.txt'.format(species)
+    genes, rblist = load_genes(species)
+    strucs = load_structure_data()
+    if filter_ribosomes:
+        fname = 'data/structural/NED_quaternary_{0}.txt'.format(species)
+    else:
+        fname = 'data/structural/NED_quaternary_{0}_ribo.txt'.format(species)
     with open(fname, 'w') as outfile:
         header = ['gene', 'struc', 'chn', 'decay.class', 'qtype',
                   'unq', 'tot', 'species', '\n']
         outfile.write('\t'.join(header))
         for gene in genes:
-            if genes[gene][0] not in strucs:
+            pdb = genes[gene][0]
+            if pdb not in strucs:
+                log.warning('{0} {1} not in table1.out'.format(species, pdb))
                 continue
-            struc = strucs[genes[gene][0]]
+            elif filter_ribosomes and pdb in rblist:
+                continue
+            struc = strucs[pdb]
             line = [gene, '\t'.join(genes[gene]), struc.qtype,
                     struc.unique, struc.total, species]
             outfile.write('\t'.join(line)+'\n')
 
-def main(species):
-    genes, rblist = load_genes(species)
-    strucs = load_structure_data()
-    # If you don't want to filter out ribosomes remove this loop
-    for r in rblist:
-        strucs.pop(r)
-    for s in strucs:
-        if int(strucs[s].unique) > 64:
-            print(s, strucs[s])
-    write_gene_info(genes, strucs, species)
+def main():
+    write_gene_info('mouse')
+    write_gene_info('human')
+    write_gene_info('mouse', False)
+    write_gene_info('human', False)
 
 if __name__ == '__main__':
-    main('mouse')
-    main('human')
+    main()

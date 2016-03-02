@@ -27,7 +27,8 @@ class CoexpressTable(object):
             self._homologs = False
             self._corum = dbloader.LoadCorum(species, 'core')
         self._coex = coexpressdb.Coexpression(species)
-        self._decay = {line[-2]: line[-3] for line in neds}
+        # Check these indices if using new datasets
+        self._decay = {line[0]: line[-2] for line in neds}
         self._species = species
         self._outdata = []
 
@@ -97,6 +98,9 @@ class CoexpressTable(object):
             usubs = len(self._complex.uniprot)
             if self._homologs:
                 entrezids = self._homologise_complex()
+                if len(entrezids) < 3:
+                    # print('oops')
+                    continue
                 avg_coex = self._avg_coexpression(entrezids)
                 avg_coex = self._convert_homolog_avgcoex_keys(avg_coex)
             else:
@@ -121,15 +125,7 @@ class CoexpressTable(object):
 
 
 ###############################################################################
-
-def coexpression_binomial(filename):
-    """Per complex binomial test for average subunit coexpression.
-
-    Returns:
-        trials - number of complexes tested
-        success - times median coexpression score of NEDs was higher than EDs.
-        pval - exact, two-sided probability of success given p=0.5 under H0.
-    """
+def corum_complex_dict(filename):
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile][1:]
     strucs = {line[0]: [] for line in data}
@@ -138,6 +134,31 @@ def coexpression_binomial(filename):
         if info == ('NA', 'NA'):
             continue
         strucs[line[0]].append(info)
+    return strucs
+
+def structural_complex_dict(filename):
+    with open(filename) as infile:
+        data = [line.strip().split('\t') for line in infile][1:]
+    strucs = {line[2].split('_')[0]: [] for line in data}
+    for line in data:
+        info = line[3], line[1]
+        if info == ('NA', 'NA'):
+            continue
+        strucs[line[2].split('_')[0]].append(info)
+    return strucs
+
+def coexpression_binomial(filename, datatype='corum'):
+    """Per complex binomial test for average subunit coexpression.
+
+    Returns:
+        trials - number of complexes tested
+        success - times median coexpression score of NEDs was higher than EDs.
+        pval - exact, two-sided probability of success given p=0.5 under H0.
+    """
+    if datatype == 'corum':
+        strucs = corum_complex_dict(filename)
+    elif datatype == 'structural':
+        strucs = structural_complex_dict(filename)
     success, trials = 0, 0
     for struc in strucs:
         nvals, evals = [], []
@@ -147,47 +168,36 @@ def coexpression_binomial(filename):
             if subunit[0] == 'NA':
                 continue
             # Append avg coexpressions.
-            if subunit[1] == 'NED':
+            if subunit[1] == 'ED': #or subunit[1] == 'N':
                 nvals.append(float(subunit[0]))
-            elif subunit[1] == 'ED':
+            elif subunit[1] == 'UN': #or subunit[1] == 'U':
                 evals.append(float(subunit[0]))
         if len(nvals) == 0 or len(evals) == 0 or nvals == evals:
             continue
         trials += 1
-        if median(nvals) > median(evals):
+        if mean(nvals) > mean(evals):
             success += 1
     pval = binom_test(success, trials)
     print(success, trials, pval)
     return success, trials, pval
 
-def filter_topseqid_struc_coexpression():
-    with open('data/coexpression/struc_coex.txt') as infile:
-        new_data = [infile.readline()]
-        sdict = []
-        for line in  infile:
-            sline = line.strip().split()
-            if sline[2] not in sdict:
-                sdict.append(sline[2])
-                new_data.append(line)
-    for line in new_data:
-        print(line.strip())
-
 def main():
-    # # Mouse Homologs
+    # Mouse Homologs
     # tab = CoexpressTable('mouse', homologs=True)
     # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_mouse_homologs.tsv')
-    coexpression_binomial('data/coexpressdb_corum_mouse_homologs.tsv')
-    # # Human complexes
+    # tab.write_to_file('data/coexpression/coexpressdb_corum_mouse_homologs.tsv')
+    coexpression_binomial('data/coexpression/coexpressdb_corum_mouse_homologs.tsv')
+    # Human complexes
     # tab = CoexpressTable('human')
     # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_human.tsv')
-    coexpression_binomial('data/coexpressdb_corum_human.tsv')
-    # # Mouse complexes
+    # tab.write_to_file('data/coexpression/coexpressdb_corum_human.tsv')
+    coexpression_binomial('data/coexpression/coexpressdb_corum_human.tsv')
+    # Mouse complexes
     # tab = CoexpressTable('mouse')
     # tab.process_data()
-    # tab.write_to_file('data/coexpressdb_corum_mouse.tsv')
-    coexpression_binomial('data/coexpressdb_corum_mouse.tsv')
+    # tab.write_to_file('data/coexpression/coexpressdb_corum_mouse.tsv')
+    coexpression_binomial('data/coexpression/coexpressdb_corum_mouse.tsv')
 
 if __name__ == '__main__':
     main()
+

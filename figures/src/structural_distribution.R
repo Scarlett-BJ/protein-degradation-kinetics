@@ -8,7 +8,7 @@ library("RColorBrewer")
 library("dgof")
 library("boot")
 
-humanf <- "halflife/halflife/data/structural/NED_quaternary_human.txt.txt"
+humanf <- "halflife/halflife/data/structural/NED_quaternary_human.txt"
 mousef <- "halflife/halflife/data/structural/NED_quaternary_mouse_ribo.txt"
 df_human <- read.table(humanf, header = TRUE)
 df_mouse <- read.table(mousef, header = TRUE)

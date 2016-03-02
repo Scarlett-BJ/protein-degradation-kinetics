@@ -15,7 +15,7 @@ def abundance_dict(species):
     """Returns dict - uniprot => (decay, abundance)"""
     header, data = utils.load_ned_data(species)
     pi = header.index('proID')
-    ai = header.index('Rel. abund')
+    ai = header.index('rel.abun')
     di = header.index('def')
     return {line[pi]: (float(line[ai]), line[di]) for line in data}
 

@@ -3,9 +3,11 @@
 def load_ned_data(species):
     """Loads processed decay data from Selbach group"""
     if species == 'mouse':
-        filename = 'data/NED_mouse_Abund.txt'
+        # filename = 'data/old_data/NED_mouse_abund.txt'  OLD
+        filename = 'data/NED_mouse_123_200_15_rel_abun.txt'
     elif species == 'human':
-        filename = 'data/NED_human_Abund.txt'
+        # filename = 'data/old_data/NED_human_abund.txt'  OLD
+        filename = 'data/NED_RPE_200_15_rel_abun.txt'
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile]
     header = data[0]
@@ -78,4 +80,9 @@ def map_entrez_to_homologs(homologs):
     with open('data/homology/corum_mouse_homologs.txt', 'w') as outfile:
         for line in homologs:
             outfile.write('\t'.join(line)+'\n')
+
+if __name__ == '__main__':
+    header, data = load_ned_data('mouse')
+    print(header)
+    # print(data)
 

@@ -2,13 +2,9 @@ library("ggplot2")
 library("dplyr")
 library("scales")
 library("gridExtra")
-# library("grid")
-# library("lattice")
-# library("RColorBrewer")
 library("dgof")
-# library("boot")
 
-# Panel A data
+# Panel A data (with ribosomes)
 df_mouse <- read.table("halflife/halflife/data/structural/NED_quaternary_mouse_ribo.txt", 
                        header = TRUE)
 
@@ -208,9 +204,15 @@ panelc <-jitter_plotter(df_assembly) + coord_flip()
 panelc
 
 ## Panel D - NED subunits are more highly coepressed
-density_plotter <- function(df){
+density_plotter <- function(df, bintype = "struc"){
+  if (bintype == "struc"){ 
     df$bin <- cut(df$usubs, c(2, 4, 6,  10, 100))
     levels(df$bin) <- c("3-4", "5-6", "7-10", "11+")
+  } else if (bintype == "corum"){
+    df$bin <- cut(df$usubs, c(2, 5, 10, 15, 20, 25, 30, 40, 80, 200))
+    levels(df$bin) <- c("3-5", "6-10", "11-15", "16-20", "21-25", "26-30",
+                        "30-40", "40-80", "80+")
+  }
   df <- na.omit(df)
   plt <- ggplot(df, aes(x = avg.coex)) +
     geom_density(aes(fill = decay.class), alpha = 0.7, lwd = 0.4) +
@@ -235,3 +237,80 @@ paneld <- density_plotter(filter(df_struc, usubs >= 3)) +
 
 grid.arrange(panela, panelb, panelc, paneld, 
              widths = c(5, 7), heights = c(1, 1), nrow = 2)
+
+################################################################################
+
+## Supplementary figures
+
+# Panel A with ribosmomes filtered out
+mouse_no_ribo_file <- "halflife/halflife/data/structural/NED_quaternary_mouse.txt"
+df_mouse_no_ribosomes <- read.table(mouse_no_ribo_file, header = TRUE)
+
+spanel_1 <- stacked_plotter(df_mouse_no_ribosomes)
+spanel_1
+
+# Structural data, coexpression density filtered by number of unique subunits
+spanel_2a <- density_plotter(filter(df_struc, usubs >= 3)) +
+  facet_wrap(~ bin, ncol=2)
+spanel_2a
+
+mouse_file <- "halflife/halflife/data/coexpression/coexpressdb_corum_mouse_homologs.tsv"
+header <- c("cid", "usubs", "uniprot.id", "avg.coex", "decay.class", "species")
+df_corum_mouse <- read.table(mouse_file, header = TRUE, sep = "\t")
+colnames(df_corum_mouse) <- header
+df_corum_mouse$decay.class <- factor(df_corum_mouse$decay.class, 
+                                     levels = c("UN", "ED", "NED"))
+levels(df_corum_mouse$decay.class) <- c("Undefined", "ED", "NED")
+
+spanel_2bi <-  density_plotter(filter(df_corum_mouse, usubs >= 3), 
+                              bintype = "corum") + facet_wrap(~ bin, ncol=3)
+spanel_2bi
+
+spanel_2c <-  density_plotter(filter(df_corum_mouse, usubs >= 3), 
+                              bintype = "corum") +
+  geom_text(data = data.frame(x = 0.55, y = 2.5, lab = "P = 3.8e-55"), 
+            aes(x, y, label = lab), size = 2.5, fontface = "italic")
+spanel_2c
+
+
+
+dgof_ks <- function(df, c1, c2){
+  c1v <- factor(filter(df, qtype == "het", decay.class == c1)$unq)
+  c2v <- factor(filter(df, qtype == "het", decay.class == c2)$unq)
+  print(length(c1v))
+  print(length(c2v))
+  result = ks.test(c1v, ecdf(c2v), simulate.p.value = TRUE, exact = FALSE)
+  print(result)
+  return(result$p.value)
+}
+
+heteromer_density_plotter <- function(df){
+  df <- filter(df, qtype == "het", decay.class != "X")
+  df$decay.class <- factor(df$decay.class, levels = c("U", "E", "N"))
+  levels(df$decay.class) <- c("Undefined", "ED", "NED")
+  plt <- ggplot(df, aes(x = unq)) +
+    geom_density(aes(fill = decay.class), alpha = 0.7, adjust = 1, lwd = 0.4) +
+    scale_fill_manual(values =  c("grey", "#f22a1b", "#2f868b")) +
+    scale_x_log10(lim = c(2, 512), 
+                  breaks = c(2, 4, 8, 16, 32, 64, 128, 256, 512)) +
+    labs(x = "Number of unique subunits", y = "Density", fill = "") +
+    theme(text = element_text(size=9),
+          legend.key.size = unit(0.3, "cm"),
+          legend.title = element_blank(),
+          axis.title.y = element_text(margin = margin(r = -3)),
+          legend.margin = unit(0, "cm"))
+  return(plt)
+}
+
+
+spanel_3 <- grid.arrange(heteromer_density_plotter(df_mouse) + 
+                           geom_text(data = data.frame(x = 8, y = 2, 
+                                                       lab = "P < 2.2e-16"), 
+                                     aes(x, y, label = lab), size = 2.5, 
+                                     fontface = "italic"),
+                         heteromer_density_plotter(df_mouse_no_ribosomes) +
+                           geom_text(data = data.frame(x = 8, y = 2, 
+                                                       lab = "P < 2.2e-16"), 
+                                     aes(x, y, label = lab), size = 2.5, 
+                                     fontface = "italic"))
+

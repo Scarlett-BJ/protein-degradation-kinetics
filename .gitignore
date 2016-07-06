@@ -32,3 +32,5 @@ cache/
 *.tmp
 *.svg
 *.tar
+*.tar.gz
+data/

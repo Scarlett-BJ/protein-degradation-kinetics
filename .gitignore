@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# R extenstions
+*.Rhistory
+
 # Distribution / packaging
 .Python
 env/
@@ -34,3 +37,4 @@ cache/
 *.tar
 *.tar.gz
 data/
+synthesis_cost.py

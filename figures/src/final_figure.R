@@ -5,7 +5,7 @@ library("gridExtra")
 library("dgof")
 
 # Panel A data (with ribosomes)
-df_mouse <- read.table("halflife/halflife/data/structural/NED_quaternary_mouse_ribo.txt", 
+df_mouse <- read.table("halflife/halflife/data/revised_data/NED_quaternary_mouse.txt", 
                        header = TRUE)
 
 # Panel B data

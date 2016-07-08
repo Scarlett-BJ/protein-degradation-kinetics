@@ -7,8 +7,10 @@ import sys
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger('structural')
 
+# Figure 5, Panel A
+
 def load_genes(species):
-    """Return dictionary contating genes mapped to pdb and decay."""
+    """Return dictionary containing genes mapped to pdb and decay."""
     genes = {}
     ribosome_blacklist = []
     filename = 'data/revised_data/{0}_map.txt'.format(species)
@@ -33,6 +35,7 @@ def load_structure_data(species):
     with open('data/revised_data/{0}_QS.txt'.format(species)) as infile:
         header = infile.readline()
         qs = {line.split()[1]: line.strip().split()[2] for line in infile}
+    print(qs)
     with open('data/revised_data/{0}_map.txt'.format(species)) as infile:
         strucs = {line.split()[2]: line.split()[4] for line in infile}
     Stoich = namedtuple('Stoich', ['unique', 'qtype'])
@@ -57,7 +60,7 @@ def write_gene_info(species, filter_ribosomes=False):
         header = ['gene', 'struc', 'chn', 'decay.class', 'qtype',
                   'unq', 'species', '\n']
         outfile.write('\t'.join(header))
-        for gene in genes:
+        for gene in qs:
             pdb = genes[gene][0]
             if pdb not in strucs:
                 log.warning('{0} {1} not available'.format(species, pdb))
@@ -70,44 +73,74 @@ def write_gene_info(species, filter_ribosomes=False):
                     struc.unique, species]
             outfile.write('\t'.join(line)+'\n')
 
+################################################################################
+## Above lies legacy code, below the good stuff
 
-# def filter_top_seqid_isize():
-#     with open('data/old_data/isize.txt') as infile:
-#         infile.readline()
-#         print(len([i.split()[2] for in infile]))
-#     with open('data/old_data/isize.txt') as infile:
-#         new_data = [infile.readline()]
-#         sdict = []
-#         for line in  infile:
-#             sline = line.strip().split('\t')
-#             if sline[2] not in sdict:
-#                 sdict.append(sline[2])
-#                 new_data.append(line)
-    # for line in new_data:
-    #     print(line.strip())
-    # print(len(new_data))
+def load_strucs(species):
+    strucs = {}
+    Info = namedtuple('Info', ['decayclass', 'unique'])
+    with open('data/revised_data/{0}_map.txt'.format(species)) as infile:
+        infile.readline()
+        for line in infile:
+            line = line.split()
+            strucs[line[2]] = Info(line[1], line[4])
+    return strucs
 
-def filter_top_seqid_assembly():
-    with open('data/structural/assembly.txt') as infile:
-        new_data = [infile.readline()]
-        sdict = []
-        for line in  infile:
-            sline = line.strip().split()
-            if sline[2] not in sdict:
-                sdict.append(sline[2])
-                new_data.append(line)
-    for line in new_data:
-        print(line.strip())
+# Figure 5, Panel A
+def qstype_data(species, remove_ribosomes=False):
+    _, ribosome_blacklist = load_genes(species)
+    strucs = load_strucs(species)
+    with open ('data/revised_data/{0}_QS.txt'.format(species)) as infile:
+        infile.readline()
+        data = [line.strip().split('\t') for line in infile]
+    header = 'gene\tpdb\tdecay.class\tqtype\tunq\n'
+    if remove_ribosomes:
+        outfilename = 'data/figdata/panela_{0}_noribo.txt'.format(species)
+    else:
+        outfilename = 'data/figdata/panela_{0}.txt'.format(species)
+    with open(outfilename, 'w') as outfile:
+        outfile.write(header)
+        for l in data:
+            if remove_ribosomes and l[1] in ribosome_blacklist:
+                continue
+            l = [l[0], l[1], strucs[l[1]].decayclass, l[2], strucs[l[1]].unique]
+            outfile.write('\t'.join(l)+'\n')
+
+# Figure 5, Panel B
+def interface_data(species):
+    strucs = load_strucs(species)
+    with open('data/revised_data/{0}_interfaces.txt'.format(species)) as infile:
+        infile.readline()
+        data = [line.strip().split('\t') for line in infile]
+    header = 'Gene\tClass\tPDB chain\tInterface size\tUnique subunits\n'
+    outfilename = 'data/figdata/panelb_{0}.txt'.format(species)
+    with open(outfilename, 'w') as outfile:
+        outfile.write(header)
+        for l in data:
+            l = [l[0], strucs[l[1]].decayclass, l[1], l[2], strucs[l[1]].unique]
+            outfile.write('\t'.join(l)+'\n')
+
+# Figure 5, Panel C
+def assembly_data(species):
+    strucs = load_strucs(species)
+    with open('data/revised_data/{0}_assembly.txt'.format(species)) as infile:
+        infile.readline()
+        data = [line.strip().split('\t') for line in infile]
+    header = 'Gene\tClass\tPDB chain\tNormalised assembly order\tusubs\n'
+    outfilename = 'data/figdata/panelc_{0}.txt'.format(species)
+    with open(outfilename, 'w') as outfile:
+        outfile.write(header)
+        for l in data:
+            l = [l[0], strucs[l[1]].decayclass, l[1], l[2], strucs[l[1]].unique]
+            outfile.write('\t'.join(l)+'\n')
 
 
 def main():
-    write_gene_info('mouse')
-    write_gene_info('human')
-    write_gene_info('mouse', True)
-    write_gene_info('human', True)
-    # filter_top_seqid_isize()
-    # a, b = load_genes('mouse')
-    # print(b)
+    for species in ('mouse', 'human'):
+        qstype_data(species)
+        qstype_data(species, remove_ribosomes=True)
+        interface_data(species)
+        assembly_data(species)
 
 if __name__ == '__main__':
     main()

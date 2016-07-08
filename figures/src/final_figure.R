@@ -4,23 +4,24 @@ library("scales")
 library("gridExtra")
 library("dgof")
 
-# Panel A data (with ribosomes)
-df_mouse <- read.table("halflife/halflife/data/revised_data/NED_quaternary_mouse.txt", 
+# Panel A data (with ribosomes included)
+df_qs <- read.table("halflife/halflife/data/figdata/panela_mouse.txt", 
                        header = TRUE)
 
 # Panel B data
-df_isize <- read.table("halflife/halflife/data/structural/isize.txt",
+df_isize <- read.table("halflife/halflife/data/figdata/panelb_mouse.txt",
                        header = TRUE, sep = "\t")
 
 # Panel C data
-df_assembly <- read.table("halflife/halflife/data/structural/assembly.txt",
+df_assembly <- read.table("halflife/halflife/data/figdata/panelc_mouse.txt",
                           header = TRUE, sep = "\t")
+df_assembly <- filter(df_assembly, usubs > 5)
 df_assembly$Class <- factor(df_assembly$Class, levels = c("N", "U", "E"))
 levels(df_assembly$Class) <- c("NED", "Undefined", "ED")
 # Panel D data
 df_struc <- read.table("halflife/halflife/data/coexpression/struc_coex.txt",
                        header = TRUE, sep = "\t")
-colnames(df_struc) <- c("gene", "decay.class", "cid", "avg.coex", "seqid", "usubs")
+colnames(df_struc) <- c("gene", "decay.class", "cid", "avg.coex", "usubs")
 df_struc$decay.class <- factor(df_struc$decay.class, 
                                levels = c("U", "E", "N"))
 levels(df_struc$decay.class) <- c("Undefined", "ED", "NED")
@@ -98,7 +99,7 @@ stacked_plotter <- function(df_plt){
   return(plt)
 }
 
-panela <-stacked_plotter(df_mouse) 
+panela <-stacked_plotter(df_qs) 
 panela
 
 ## Panel B - Dodged boxplots showing increase in interface size with NEDs
@@ -179,8 +180,8 @@ jitter_plotter <- function(df){
   plt <- ggplot(df_plt, aes(x = Class)) +
     geom_boxplot(aes(y = Normalised.assembly.order, fill = Class), 
                  alpha = 1, lwd = 0.4) +
-    #     geom_jitter(aes(y = Normalised.assembly.order, fill = Class), 
-    #                 size = 1.8, width = 0.6, colour = "black", pch=21) +
+#         geom_jitter(aes(y = Normalised.assembly.order, fill = Class), 
+#                     size = 1.8, width = 0.6, colour = "black", pch=21) +
     scale_fill_manual(values = c("#2f868b", "grey", "#f22a1b")) +
     scale_colour_manual(values = c("blue4", "gray8", "red4")) +
     scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1),

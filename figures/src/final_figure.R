@@ -1,34 +1,41 @@
 library("ggplot2")
 library("dplyr")
-library("scales")
 library("gridExtra")
 library("dgof")
 
-# Panel A data (with ribosomes included)
+
+################################################################################
+## Load Figure Datasets - replace filenames with *_human.txt if required
+
+# Figure 5A data (with ribosomes included)
 df_qs <- read.table("halflife/halflife/data/figdata/panela_mouse.txt", 
                        header = TRUE)
 
-# Panel B data
+# Figure 5B data
 df_isize <- read.table("halflife/halflife/data/figdata/panelb_mouse.txt",
                        header = TRUE, sep = "\t")
 
-# Panel C data
+# Figure 5C data
 df_assembly <- read.table("halflife/halflife/data/figdata/panelc_mouse.txt",
                           header = TRUE, sep = "\t")
 df_assembly <- filter(df_assembly, usubs > 5)
 df_assembly$Class <- factor(df_assembly$Class, levels = c("N", "U", "E"))
 levels(df_assembly$Class) <- c("NED", "Undefined", "ED")
-# Panel D data
-df_struc <- read.table("halflife/halflife/data/coexpression/struc_coex.txt",
+
+# Figure 5D data
+df_coex <- read.table("halflife/halflife/data/figdata/paneld_mouse.txt",
                        header = TRUE, sep = "\t")
-colnames(df_struc) <- c("gene", "decay.class", "cid", "avg.coex", "usubs")
-df_struc$decay.class <- factor(df_struc$decay.class, 
+colnames(df_coex) <- c("gene", "decay.class", "pdb", "avg.coex", "usubs")
+df_coex$decay.class <- factor(df_coex$decay.class, 
                                levels = c("U", "E", "N"))
-levels(df_struc$decay.class) <- c("Undefined", "ED", "NED")
+levels(df_coex$decay.class) <- c("Undefined", "ED", "NED")
+df_coex$bin <- factor(paste(min(df_coex$usubs), "-", max(df_coex$usubs), sep = ""))
 
 
-## Panel A - Stacked barplot showing proportion of ED in diff quat. strucs.
+################################################################################
+## Generate main paper figures and associated statistical tests.
 
+## 5A - Stacked barplot showing proportion of ED in diff quat. strucs.
 # Returns fisher.test pval for matrix containing chosen classes
 get_fisher <- function(dfx, dclass){
   ned_hets <- length(filter(dfx, qtype == "het", 
@@ -57,8 +64,8 @@ get_bar_sizes <- function(dfx){
   return(matrix(barvals, nrow = 3))
 }
 
-# Return panel A plot
-stacked_plotter <- function(df_plt){
+# Return fig 5, panel A plot
+qs_plotter <- function(df_plt){
   barvals <- get_bar_sizes(df_plt)
   pvals <- c(get_fisher(df_plt, "E"), get_fisher(df_plt, "U"))
   dfinternal <- filter(df_plt, decay.class != "X")
@@ -82,27 +89,39 @@ stacked_plotter <- function(df_plt){
           legend.position = "top",
           axis.title.x = element_blank(),
           legend.margin = unit(0, "cm")) +
-    # annotations is for ribosomes-sincluded
-    geom_text(data = data.frame(x = 1, y = c(0.72, 0.46, 0.05), 
+    # annotations for ribosomes-included
+    geom_text(data = data.frame(x = 1, y = c(0.765, 0.525, 0.05), 
                                 lab = barvals[1,]),
               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
-    geom_text(data = data.frame(x = 2, y = c(0.79, 0.53, 0.05), 
+    geom_text(data = data.frame(x = 2, y = c(0.77, 0.525, 0.05), 
                                 lab = barvals[2,]),
               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
-    geom_text(data = data.frame(x = 3, y = c(0.90, 0.68, 0.05), 
+    geom_text(data = data.frame(x = 3, y = c(0.93, 0.75, 0.05), 
                                 lab = barvals[3,]),
               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
     geom_text(data = data.frame(x = c(2, 2.5), y = c(1.135, 1.075), 
                                 lab = pvals),
               aes(x, y, label = lab), size = 2.5, fontface = "italic") +
+    # annotations for ribosomes excluded
+#     geom_text(data = data.frame(x = 1, y = c(0.75, 0.485, 0.05), 
+#                                 lab = barvals[1,]),
+#               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
+#     geom_text(data = data.frame(x = 2, y = c(0.76, 0.49, 0.05), 
+#                                 lab = barvals[2,]),
+#               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
+#     geom_text(data = data.frame(x = 3, y = c(0.89, 0.67, 0.05), 
+#                                 lab = barvals[3,]),
+#               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
+#     geom_text(data = data.frame(x = c(2, 2.5), y = c(1.135, 1.075), 
+#                                 lab = pvals),
+#               aes(x, y, label = lab), size = 2.5, fontface = "italic") +
     guides(fill=guide_legend(reverse=TRUE))
   return(plt)
 }
 
-panela <-stacked_plotter(df_qs) 
-panela
+fig5a <- qs_plotter(df_qs) 
 
-## Panel B - Dodged boxplots showing increase in interface size with NEDs
+## 5B - Dodged boxplots showing increase in interface size with NEDs
 # Cacluate wilcoxon p-values
 calc_pvals <- function(df){
   df_internal <- df
@@ -118,9 +137,9 @@ calc_pvals <- function(df){
 }
 
 # Return panel B plot
-box_plotter <- function(df){
+interface_plotter <- function(df){
   pval_annots <- mutate(calc_pvals(df), y = 15000)
-  df_internal <- df
+  df_internal <- filter(df, Interface.size >= 200)
   df_internal$Class <- factor(df_internal$Class, levels = c("E", "U", "N"))
   levels(df_internal$Class) <- c("ED", "Undefined", "NED")
   df_internal[df_internal$Unique.subunits >= 4,]$Unique.subunits <- 4
@@ -150,10 +169,9 @@ box_plotter <- function(df){
   return(plt)
 }
 
-panelb <- box_plotter(df_isize)
-panelb
+fig5b <- interface_plotter(df_isize)
 
-## Panel C - boxplots showing NED proteins assemble earlier
+## 5C - boxplots showing NED proteins assemble earlier
 get_raw_counts <- function(df){
   ned <- length(filter(df, Class == "NED")$Class)
   un <- length(filter(df, Class == "Undefined")$Class)
@@ -173,7 +191,7 @@ get_wilcoxon_pvals <- function(df){
            signif(ed_un$p.value, 1)))
 }
 
-jitter_plotter <- function(df){
+assembly_plotter <- function(df){
   df_plt <- df
   rcounts <- get_raw_counts(df_plt)
   pvals <- get_wilcoxon_pvals(df_plt)
@@ -192,7 +210,7 @@ jitter_plotter <- function(df){
           legend.key.size = unit(0.3, "cm"),
           legend.position = "none",
           axis.title.y = element_blank()) +
-    geom_text(data = data.frame(x = c(1, 2, 3), y = c(0.25, 0.3, 0.58), 
+    geom_text(data = data.frame(x = c(3, 2, 1), y = c(0.71, 0.63, 0.49), 
                                 lab = rcounts),
               aes(x, y, label = lab), size = 2.5, alpha = 0.6) +
     geom_text(data = data.frame(x = c(1.5, 2, 2.5), y = c(1.05, 1.15, 1.05), 
@@ -201,11 +219,10 @@ jitter_plotter <- function(df){
   return(plt)
 }
 
-panelc <-jitter_plotter(df_assembly) + coord_flip()
-panelc
+fig5c <- assembly_plotter(df_assembly) + coord_flip()
 
-## Panel D - NED subunits are more highly coepressed
-density_plotter <- function(df, bintype = "struc"){
+## 5D - NED subunits are more highly coepressed
+bin_subunits <- function(df, bintype){
   if (bintype == "struc"){ 
     df$bin <- cut(df$usubs, c(2, 4, 6,  10, 100))
     levels(df$bin) <- c("3-4", "5-6", "7-10", "11+")
@@ -215,6 +232,25 @@ density_plotter <- function(df, bintype = "struc"){
                         "30-40", "40-80", "80+")
   }
   df <- na.omit(df)
+  return(df)
+}
+
+generate_facet_pvals <- function(df, yloc){
+  df_pvals <-  data.frame(x = 0.65, y = yloc, bin = levels(df$bin))
+  pvals <- c()
+  for (b in levels(df$bin)){
+    p <- wilcox.test(filter(df, bin == b, decay.class == "NED")$avg.coex,
+                    filter(df, bin == b, decay.class == "ED")$avg.coex)$p.value
+    p <- signif(p, 2)
+    p <- paste("P =", p)
+    pvals <- c(pvals, p)
+  }
+  df_pvals$lab <- pvals
+  return(df_pvals)
+}
+
+density_plotter <- function(df, bintype = "struc"){
+  df <- bin_subunits(df, bintype)
   plt <- ggplot(df, aes(x = avg.coex)) +
     geom_density(aes(fill = decay.class), alpha = 0.7, lwd = 0.4) +
     scale_fill_manual(values = c("grey", "#f22a1b", "#2f868b")) +
@@ -232,56 +268,25 @@ density_plotter <- function(df, bintype = "struc"){
   return(plt)
 }
 
-paneld <- density_plotter(filter(df_struc, usubs >= 3)) + 
-  geom_text(data = data.frame(x = 0.55, y = 2.5, lab = "P = 1.2e-08"), 
+fig5d <- density_plotter(df_coex) +
+  geom_text(data = generate_facet_pvals(df_coex, 2.5), 
             aes(x, y, label = lab), size = 2.5, fontface = "italic")
-
-grid.arrange(panela, panelb, panelc, paneld, 
-             widths = c(5, 7), heights = c(1, 1), nrow = 2)
 
 ################################################################################
+## Generate selected supplementary figures
 
-## Supplementary figures
-
-# Panel A with ribosmomes filtered out
-mouse_no_ribo_file <- "halflife/halflife/data/structural/NED_quaternary_mouse.txt"
+## Figure S10 - 5A with ribosmomes filtered out
+mouse_no_ribo_file <- "halflife/halflife/data/figdata/panela_mouse_noribo.txt"
 df_mouse_no_ribosomes <- read.table(mouse_no_ribo_file, header = TRUE)
 
-spanel_1 <- stacked_plotter(df_mouse_no_ribosomes)
-spanel_1
+figS10 <- qs_plotter(df_mouse_no_ribosomes)
 
-# Structural data, coexpression density filtered by number of unique subunits
-spanel_2a <- density_plotter(filter(df_struc, usubs >= 3)) +
-  facet_wrap(~ bin, ncol=2)
-spanel_2a
-
-mouse_file <- "halflife/halflife/data/coexpression/coexpressdb_corum_mouse_homologs.tsv"
-header <- c("cid", "usubs", "uniprot.id", "avg.coex", "decay.class", "species")
-df_corum_mouse <- read.table(mouse_file, header = TRUE, sep = "\t")
-colnames(df_corum_mouse) <- header
-df_corum_mouse$decay.class <- factor(df_corum_mouse$decay.class, 
-                                     levels = c("UN", "ED", "NED"))
-levels(df_corum_mouse$decay.class) <- c("Undefined", "ED", "NED")
-
-spanel_2bi <-  density_plotter(filter(df_corum_mouse, usubs >= 3), 
-                              bintype = "corum") + facet_wrap(~ bin, ncol=3)
-spanel_2bi
-
-spanel_2c <-  density_plotter(filter(df_corum_mouse, usubs >= 3), 
-                              bintype = "corum") +
-  geom_text(data = data.frame(x = 0.55, y = 2.5, lab = "P = 3.8e-55"), 
-            aes(x, y, label = lab), size = 2.5, fontface = "italic")
-spanel_2c
-
-
-
+## Figure S11 - Unique subunit density plot for heteromers.
+# Calculate modified Kolmogorov-Smirnov p-values accounting for discrete subunit distribution
 dgof_ks <- function(df, c1, c2){
   c1v <- factor(filter(df, qtype == "het", decay.class == c1)$unq)
   c2v <- factor(filter(df, qtype == "het", decay.class == c2)$unq)
-  print(length(c1v))
-  print(length(c2v))
   result = ks.test(c1v, ecdf(c2v), simulate.p.value = TRUE, exact = FALSE)
-  print(result)
   return(result$p.value)
 }
 
@@ -303,15 +308,54 @@ heteromer_density_plotter <- function(df){
   return(plt)
 }
 
+with_ribo_pval <- max(2.2e-16, dgof_ks(df_qs, "N", "E"))
+without_ribo_pval <- max(2.2e-16, dgof_ks(df_mouse_no_ribosomes, "N", "E"))
 
-spanel_3 <- grid.arrange(heteromer_density_plotter(df_mouse) + 
-                           geom_text(data = data.frame(x = 8, y = 2, 
-                                                       lab = "P < 2.2e-16"), 
-                                     aes(x, y, label = lab), size = 2.5, 
-                                     fontface = "italic"),
-                         heteromer_density_plotter(df_mouse_no_ribosomes) +
-                           geom_text(data = data.frame(x = 8, y = 2, 
-                                                       lab = "P < 2.2e-16"), 
-                                     aes(x, y, label = lab), size = 2.5, 
-                                     fontface = "italic"))
+figS11A <- heteromer_density_plotter(df_qs) + 
+  geom_text(data = data.frame(x = 8, y = 2, lab = paste("P <", with_ribo_pval)), 
+            aes(x, y, label = lab), size = 2.5, 
+            fontface = "italic")
+
+figS11B <- heteromer_density_plotter(df_mouse_no_ribosomes) +
+  geom_text(data = data.frame(x = 8, y = 2, lab = paste("P <", without_ribo_pval)), 
+            aes(x, y, label = lab), size = 2.5,
+            fontface = "italic")
+
+## Figure S12 - Structural data, coexpression density filtered by number of unique subunits
+figS12 <- density_plotter(filter(df_coex, usubs >= 3)) +
+  facet_wrap(~ bin, ncol=2) +
+  geom_text(data = generate_facet_pvals(bin_subunits(df_coex, "struc"), 3), 
+            aes(x, y, label = lab), size = 2.5, fontface = "italic")
+
+## Fig S13 - Corum data, replicate of coexpression analyses
+corum_mouse_file <- "halflife/halflife/data/figdata/mouse_corum_coexpression.txt"
+header <- c("cid", "usubs", "uniprot.id", "avg.coex", "decay.class", "species")
+df_corum_mouse <- read.table(corum_mouse_file, header = TRUE, sep = "\t")
+colnames(df_corum_mouse) <- header
+df_corum_mouse$decay.class <- factor(df_corum_mouse$decay.class, 
+                                     levels = c("UN", "ED", "NED"))
+levels(df_corum_mouse$decay.class) <- c("Undefined", "ED", "NED")
+df_corum_mouse$bin <- factor(paste(min(df_corum_mouse$usubs), "-", max(df_corum_mouse$usubs), sep = ""))
+
+figS13A <- density_plotter(filter(df_corum_mouse, usubs >= 3), 
+                           bintype = "corum") +
+  geom_text(data = generate_facet_pvals(df_corum_mouse, 3), 
+            aes(x, y, label = lab), size = 2.5, fontface = "italic")
+
+figS13B <- density_plotter(filter(df_corum_mouse, usubs >= 3), 
+                           bintype = "corum") + facet_wrap(~ bin, ncol=3) +
+  geom_text(data = generate_facet_pvals(bin_subunits(df_corum_mouse, "corum"), 4), 
+            aes(x, y, label = lab), size = 2.5, fontface = "italic")
+
+
+################################################################################
+## Display all figures
+
+# Display Figure 5 with all panels
+grid.arrange(fig5a, fig5b, fig5c, fig5d, 
+             widths = c(5, 7), heights = c(1, 1), nrow = 2)
+figS10
+grid.arrange(figS11A, figS11B)
+figS12
+grid.arrange(figS13A, figS13B)
 

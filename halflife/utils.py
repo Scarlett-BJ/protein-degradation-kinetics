@@ -3,11 +3,13 @@
 def load_ned_data(species):
     """Loads processed decay data from Selbach group"""
     if species == 'mouse':
-        # filename = 'data/old_data/NED_mouse_abund.txt'  OLD
-        filename = 'data/NED_mouse_123_200_15_rel_abun.txt'
+        # filename = 'data/old_data/NED_mouse_abund.txt'  VERYOLD
+        # filename = 'data/NED_mouse_123_200_15_rel_abun.txt'   OLD
+        filename = 'data/revised_data/NED_mouse_200_15_rel_abun.txt'
     elif species == 'human':
-        # filename = 'data/old_data/NED_human_abund.txt'  OLD
-        filename = 'data/NED_RPE_200_15_rel_abun.txt'
+        # filename = 'data/old_data/NED_human_abund.txt'  VERYOLD
+        # filename = 'data/NED_RPE_200_15_rel_abun.txt'   OLD
+        filename = 'data/revised_data/NED_RPE_200_15_rel_abun.txt'
     with open(filename) as infile:
         data = [line.strip().split('\t') for line in infile]
     header = data[0]
@@ -17,7 +19,7 @@ def load_ned_data(species):
 def get_homologs():
     """Returns dictionary mapping mouse homologs entrez <-> uniprot."""
     homologs = {}
-    with open('data/homology/corum_mouse_homologs.txt') as infile:
+    with open('data/revised_data/corum_mouse_homologs.txt') as infile:
         data = [line.strip().split('\t') for line in infile]
     # data must be sorted in order of sequence identity (high first)
     for line in data:
@@ -37,7 +39,7 @@ def get_homologs():
 def get_uniprot_homologs(rev=False):
     """As above, but exclusively uniprot => mouse uniprot"""
     homologs = {}
-    with open('data/homology/corum_mouse_homologs.txt') as infile:
+    with open('data/corum_mouse_homologs.txt') as infile:
         data = [line.strip().split('\t') for line in infile]
     for line in data:
         original = line[1].split('|')[1]
@@ -84,5 +86,6 @@ def map_entrez_to_homologs(homologs):
 if __name__ == '__main__':
     header, data = load_ned_data('mouse')
     print(header)
-    # print(data)
-
+    print(data)
+    header, data = load_ned_data('human')
+    print(header)

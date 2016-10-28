@@ -21,7 +21,7 @@ def load_genes(species):
             for i in ['Rps', 'Rpl', 'Mrpl', 'Mrps', # Mouse
                       'RPS', 'RPL', 'MRPL', 'MRPS']: # Human
                 if i in line[0]:
-                    ribosome_blacklist.append(line[2].split('_')[0])
+                    ribosome_blacklist.append((line[0], line[2]))
             if float(line[3]) < 70.0 or int(line[6]) != 0:
                 # Ensure only sufficiently similar and best option is selected.
                 continue
@@ -83,7 +83,8 @@ def load_strucs(species):
         infile.readline()
         for line in infile:
             line = line.split()
-            strucs[line[2]] = Info(line[1], line[4])
+            # if line[6] == '0':
+            strucs[(line[0], line[2])] = Info(line[1], line[4])
     return strucs
 
 # Figure 5, Panel A
@@ -101,9 +102,11 @@ def qstype_data(species, remove_ribosomes=False):
     with open(outfilename, 'w') as outfile:
         outfile.write(header)
         for l in data:
-            if remove_ribosomes and l[1] in ribosome_blacklist:
+            if remove_ribosomes and (l[0], l[1]) in ribosome_blacklist:
+                log.warning('ribosomal {0}, {1} removed'.format(l[0], l[1]))
                 continue
-            l = [l[0], l[1], strucs[l[1]].decayclass, l[2], strucs[l[1]].unique]
+            l = [l[0], l[1], strucs[(l[0], l[1])].decayclass,
+                 l[2], strucs[(l[0], l[1])].unique]
             outfile.write('\t'.join(l)+'\n')
 
 # Figure 5, Panel B
@@ -117,7 +120,8 @@ def interface_data(species):
     with open(outfilename, 'w') as outfile:
         outfile.write(header)
         for l in data:
-            l = [l[0], strucs[l[1]].decayclass, l[1], l[2], strucs[l[1]].unique]
+            l = [l[0], strucs[(l[0], l[1])].decayclass, l[1],
+                 l[2], strucs[(l[0], l[1])].unique]
             outfile.write('\t'.join(l)+'\n')
 
 # Figure 5, Panel C
@@ -131,9 +135,28 @@ def assembly_data(species):
     with open(outfilename, 'w') as outfile:
         outfile.write(header)
         for l in data:
-            l = [l[0], strucs[l[1]].decayclass, l[1], l[2], strucs[l[1]].unique]
+            l = [l[0], strucs[(l[0], l[1])].decayclass, l[1], l[2],
+                 strucs[(l[0], l[1])].unique]
             outfile.write('\t'.join(l)+'\n')
 
+# Figure 5, Panel D
+def coexpression_data(species):
+    strucs = load_strucs(species)
+    filename = 'data/revised_data/{0}_coexpression.txt'.format(species)
+    with open(filename) as infile:
+        infile.readline()
+        data = [line.strip().split('\t') for line in infile]
+    header = 'Gene\tClass\tPDB chain\tCoexpression\tUnique subunits\n'
+    outfilename = 'data/figdata/paneld_{0}.txt'.format(species)
+    with open(outfilename, 'w') as outfile:
+        outfile.write(header)
+        for l in data:
+            if (l[0], l[1]) not in strucs:
+                log.warning('{0} missing'.format(l[1]))
+                continue
+            l = [l[0], strucs[(l[0], l[1])].decayclass, l[1],
+                 l[2], strucs[(l[0], l[1])].unique]
+            outfile.write('\t'.join(l)+'\n')
 
 def main():
     for species in ('mouse', 'human'):
@@ -141,6 +164,7 @@ def main():
         qstype_data(species, remove_ribosomes=True)
         interface_data(species)
         assembly_data(species)
+        coexpression_data(species)
 
 if __name__ == '__main__':
     main()

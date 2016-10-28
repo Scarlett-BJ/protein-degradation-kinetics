@@ -168,9 +168,9 @@ def coexpression_binomial(filename, datatype='corum'):
             if subunit[0] == 'NA':
                 continue
             # Append avg coexpressions.
-            if subunit[1] == 'ED': #or subunit[1] == 'N':
+            if subunit[1] == 'NED': #or subunit[1] == 'N':
                 nvals.append(float(subunit[0]))
-            elif subunit[1] == 'UN': #or subunit[1] == 'U':
+            elif subunit[1] != 'NED': #or subunit[1] == 'U':
                 evals.append(float(subunit[0]))
         if len(nvals) == 0 or len(evals) == 0 or nvals == evals:
             continue
@@ -183,21 +183,17 @@ def coexpression_binomial(filename, datatype='corum'):
 
 def main():
     # Mouse Homologs
-    # tab = CoexpressTable('mouse', homologs=True)
-    # tab.process_data()
-    # tab.write_to_file('data/coexpression/coexpressdb_corum_mouse_homologs.tsv')
-    coexpression_binomial('data/coexpression/coexpressdb_corum_mouse_homologs.tsv')
+    tab = CoexpressTable('mouse', homologs=True)
+    tab.process_data()
+    outfile = 'data/figdata/mouse_corum_coexpression.txt'
+    tab.write_to_file(outfile)
+    coexpression_binomial(outfile)
     # Human complexes
-    # tab = CoexpressTable('human')
-    # tab.process_data()
-    # tab.write_to_file('data/coexpression/coexpressdb_corum_human.tsv')
-    coexpression_binomial('data/coexpression/coexpressdb_corum_human.tsv')
-    # Mouse complexes
-    # tab = CoexpressTable('mouse')
-    # tab.process_data()
-    # tab.write_to_file('data/coexpression/coexpressdb_corum_mouse.tsv')
-    coexpression_binomial('data/coexpression/coexpressdb_corum_mouse.tsv')
+    tab = CoexpressTable('human')
+    tab.process_data()
+    outfile = 'data/figdata/human_corum_coexpression.txt'
+    tab.write_to_file(outfile)
+    coexpression_binomial(outfile)
 
 if __name__ == '__main__':
     main()
-

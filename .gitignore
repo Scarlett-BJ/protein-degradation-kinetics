@@ -29,13 +29,16 @@ var/
 
 # Package specific
 .DS_Store
-.cache/
-cache/
+cache/*
+data/*
 *.pdf
 *.tmp
 *.svg
 *.tar
 *.tar.gz
-data/
-synthesis_cost.py
 *.zip
+synthesis_cost.py
+temp.py
+abundance_tcount.R
+coexpression.R
+structural_distribution.R

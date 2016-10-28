@@ -38,3 +38,4 @@ cache/
 *.tar.gz
 data/
 synthesis_cost.py
+*.zip
